@@ -1,0 +1,23 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+!.env.production
+!.env.production.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node and generated builds
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+
+# System and editor files
+.DS_Store
+.vscode/
