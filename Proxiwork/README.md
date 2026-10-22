@@ -14,7 +14,7 @@ The health check is `http://localhost:8000/api/health` and returns `{ "status": 
 
 ## Vercel
 
-Import this repository as **one** Vercel project. `vercel.json` builds `frontend/`, serves `frontend/dist`, rewrites `/api/*` to root `api/index.py`, and rewrites client routes to the Vite SPA entrypoint. Configure the public frontend Supabase variables and any server-only backend variables in **Vercel Project Settings -> Environment Variables**. `frontend/.env.production` deliberately contains only `VITE_API_BASE_URL=/api`.
+Import this repository as **one** Vercel project. If the Git repository root is the parent directory of this folder, set the Vercel project **Root Directory** to `Proxiwork`. `vercel.json` builds `frontend/`, routes `/api/*` to root `api/index.py`, lets the filesystem serve Vite's generated `/assets/*` files, and rewrites client routes to the Vite SPA entrypoint. Configure the public frontend Supabase variables and any server-only backend variables in **Vercel Project Settings -> Environment Variables**. `frontend/.env.production` deliberately contains only `VITE_API_BASE_URL=/api`.
 
 ## Validation
 
