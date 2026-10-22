@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 import importlib.util
 
 backend_index = (
