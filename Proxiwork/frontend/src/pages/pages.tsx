@@ -217,13 +217,16 @@ function hasEducationContent(entry: Education) {
 function Shell({
   children,
   logoTo,
+  mobileBanner,
 }: {
   children: React.ReactNode;
   logoTo?: string;
+  mobileBanner?: React.ReactNode;
 }) {
   return (
     <>
       <Header logoTo={logoTo} />
+      {mobileBanner && <div className="md:hidden">{mobileBanner}</div>}
       <main className="mx-auto min-h-screen max-w-6xl p-5 pb-24 md:pb-8">
         {children}
       </main>
@@ -1336,20 +1339,19 @@ function JobContextBanner({ job }: { job: Job }) {
   );
 }
 
-function WeeklyApplicationGoal({ compact = false }: { compact?: boolean }) {
+function useWeeklyApplicationGoal() {
   const [goal, setGoal] = useState<number | null>(null);
   const [applied, setApplied] = useState(0);
 
-  const loadProgress = async () => {
-    const [bundle, progress] = await Promise.all([
-      getProfileBundle(),
-      weeklyApplicationProgress(),
-    ]);
-    setGoal(bundle.profile.weekly_application_goal);
-    setApplied(progress.applied);
-  };
-
   useEffect(() => {
+    const loadProgress = async () => {
+      const [bundle, progress] = await Promise.all([
+        getProfileBundle(),
+        weeklyApplicationProgress(),
+      ]);
+      setGoal(bundle.profile.weekly_application_goal);
+      setApplied(progress.applied);
+    };
     void loadProgress();
     const refresh = () => void loadProgress();
     window.addEventListener("proxiwork:application-submitted", refresh);
@@ -1357,6 +1359,18 @@ function WeeklyApplicationGoal({ compact = false }: { compact?: boolean }) {
       window.removeEventListener("proxiwork:application-submitted", refresh);
   }, []);
 
+  return { goal, applied };
+}
+
+function WeeklyApplicationGoal({
+  compact = false,
+  goal,
+  applied,
+}: {
+  compact?: boolean;
+  goal: number | null;
+  applied: number;
+}) {
   if (goal === null) return null;
   const remaining = Math.max(goal - applied, 0);
   const percent = Math.min((applied / goal) * 100, 100);
@@ -1372,12 +1386,18 @@ function WeeklyApplicationGoal({ compact = false }: { compact?: boolean }) {
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <p className={`font-bold text-white/85 ${compact ? "text-xs" : "text-sm"}`}>
-            Weekly application goal
-          </p>
-          <h2 className={`font-black ${compact ? "text-base" : "mt-1 text-xl"}`}>
-            {applied} of {goal} applications completed
-          </h2>
+          {compact ? (
+            <h2 className="text-sm font-black">
+              Weekly application goal · {applied}/{goal}
+            </h2>
+          ) : (
+            <>
+              <p className="text-sm font-bold text-white/85">Weekly application goal</p>
+              <h2 className="mt-1 text-xl font-black">
+                {applied} of {goal} applications completed
+              </h2>
+            </>
+          )}
         </div>
         <span
           className={`rounded-full bg-white/20 font-bold ${
@@ -1467,13 +1487,16 @@ export function SearchPage() {
       employmentTypes: selectedTypes,
     });
   };
+  const weeklyGoal = useWeeklyApplicationGoal();
   return (
-    <Shell>
+    <Shell mobileBanner={<WeeklyApplicationGoal compact {...weeklyGoal} />}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-3xl font-black">Find local jobs</h1>
         <JobViewSwitch view="list" />
       </div>
-      <WeeklyApplicationGoal />
+      <div className="hidden md:block">
+        <WeeklyApplicationGoal {...weeklyGoal} />
+      </div>
       <form
         className="mt-6 grid gap-3 rounded-2xl bg-white p-4 shadow-sm md:grid-cols-[1fr_1fr_180px_auto]"
         onSubmit={submit}
@@ -1592,6 +1615,7 @@ export function SwipePage() {
       .finally(() => setLoading(false));
   }, []);
   const job = list[activeIndex];
+  const weeklyGoal = useWeeklyApplicationGoal();
   return (
     <Shell>
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -1608,7 +1632,7 @@ export function SwipePage() {
         <section className="mx-auto mt-6 max-w-xl">
           <div className="overflow-hidden rounded-2xl shadow-sm">
             <JobContextBanner job={job} />
-            <WeeklyApplicationGoal compact />
+            <WeeklyApplicationGoal compact {...weeklyGoal} />
           </div>
           <div className="mt-4">
             <JobCard job={job} />
@@ -1935,6 +1959,7 @@ export function JobDetailsPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  const weeklyGoal = useWeeklyApplicationGoal();
   const goBack = () => {
     if (location.state?.from) navigate(-1);
     else navigate("/app/search");
@@ -1961,7 +1986,7 @@ export function JobDetailsPage() {
       ) : (
         <article className="mx-auto max-w-3xl overflow-hidden rounded-3xl bg-white shadow-sm">
           <JobContextBanner job={job} />
-          <WeeklyApplicationGoal compact />
+          <WeeklyApplicationGoal compact {...weeklyGoal} />
           <div className="p-6">
             <h1 className="text-3xl font-black">{job.title}</h1>
           <p className="mt-2 font-semibold text-slate-600">
