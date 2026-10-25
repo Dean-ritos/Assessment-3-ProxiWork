@@ -92,7 +92,7 @@ export function Header({ logoTo = "/app/search", mode = "candidate" }: { logoTo?
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
   const links = mode === "employer"
-    ? [["Dashboard", "/employer/dashboard"], ["Company", "/employer/company"], ["Profile", "/employer/company"]]
+    ? [["Dashboard", "/employer/dashboard"], ["Company", "/employer/company"]]
     : [["Find jobs", "/app/search"], ["Activity", "/app/activity"], ["Profile", "/app/profile"]];
   const inboxTo = mode === "employer" ? "/employer/applicants" : "/app/activity";
   const logout = async () => { await signOut(); navigate(mode === "employer" ? "/employer/login" : "/login", { replace: true }); };
