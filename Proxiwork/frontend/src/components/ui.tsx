@@ -1,7 +1,11 @@
 import { Link, NavLink } from "react-router-dom";
 import { Heart, Search, UserRound } from "lucide-react";
 import wordmark from "../assets/proxiwork-logo.png";
-export function Logo({ className = "h-10 w-auto" }: { className?: string }) {
+export function Logo({
+  className = "h-[150px] w-[150px]",
+}: {
+  className?: string;
+}) {
   return (
     <Link
       aria-label="ProxiWork home"
