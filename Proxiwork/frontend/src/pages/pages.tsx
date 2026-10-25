@@ -1322,7 +1322,21 @@ function JobCard({ job }: { job: Job }) {
   );
 }
 
-function WeeklyApplicationGoal() {
+function JobContextBanner({ job }: { job: Job }) {
+  return (
+    <section className="flex flex-wrap items-center justify-between gap-2 bg-brand-teal px-4 py-3 text-white">
+      <p className="text-sm font-black capitalize">
+        {job.employment_type.replace("_", " ")} opportunity
+      </p>
+      <p className="flex items-center gap-1 text-sm font-semibold text-white/90">
+        <MapPin size={15} />
+        {job.suburb}, {job.state}
+      </p>
+    </section>
+  );
+}
+
+function WeeklyApplicationGoal({ compact = false }: { compact?: boolean }) {
   const [goal, setGoal] = useState<number | null>(null);
   const [applied, setApplied] = useState(0);
 
@@ -1349,15 +1363,27 @@ function WeeklyApplicationGoal() {
   const complete = remaining === 0;
 
   return (
-    <section className="mt-6 rounded-2xl bg-[#7754E8] p-5 text-white shadow-sm">
+    <section
+      className={
+        compact
+          ? "bg-[#7754E8] px-4 py-3 text-white"
+          : "mt-6 rounded-2xl bg-[#7754E8] p-5 text-white shadow-sm"
+      }
+    >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <p className="text-sm font-bold text-white/85">Weekly application goal</p>
-          <h2 className="mt-1 text-xl font-black">
+          <p className={`font-bold text-white/85 ${compact ? "text-xs" : "text-sm"}`}>
+            Weekly application goal
+          </p>
+          <h2 className={`font-black ${compact ? "text-base" : "mt-1 text-xl"}`}>
             {applied} of {goal} applications completed
           </h2>
         </div>
-        <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-bold">
+        <span
+          className={`rounded-full bg-white/20 font-bold ${
+            compact ? "px-2.5 py-1 text-xs" : "px-3 py-1 text-sm"
+          }`}
+        >
           {complete ? "Goal complete" : `${remaining} to go`}
         </span>
       </div>
@@ -1366,16 +1392,18 @@ function WeeklyApplicationGoal() {
         aria-valuemax={goal}
         aria-valuemin={0}
         aria-valuenow={Math.min(applied, goal)}
-        className="mt-4 h-3 overflow-hidden rounded-full bg-white/25"
+        className={`${compact ? "mt-2 h-2" : "mt-4 h-3"} overflow-hidden rounded-full bg-white/25`}
         role="progressbar"
       >
         <div className="h-full rounded-full bg-white" style={{ width: `${percent}%` }} />
       </div>
-      <p className="mt-3 text-sm font-medium text-white/90">
-        {complete
-          ? "You have reached your goal for this week — great work!"
-          : `Apply for ${remaining} more ${remaining === 1 ? "role" : "roles"} before Sunday to reach your goal.`}
-      </p>
+      {!compact && (
+        <p className="mt-3 text-sm font-medium text-white/90">
+          {complete
+            ? "You have reached your goal for this week — great work!"
+            : `Apply for ${remaining} more ${remaining === 1 ? "role" : "roles"} before Sunday to reach your goal.`}
+        </p>
+      )}
     </section>
   );
 }
@@ -1570,7 +1598,6 @@ export function SwipePage() {
         <h1 className="text-3xl font-black">Heres some listings for you</h1>
         <JobViewSwitch view="swipe" />
       </div>
-      <WeeklyApplicationGoal />
       {loading ? (
         <p className="mt-6">Loading jobs…</p>
       ) : error ? (
@@ -1579,7 +1606,13 @@ export function SwipePage() {
         </div>
       ) : job ? (
         <section className="mx-auto mt-6 max-w-xl">
-          <JobCard job={job} />
+          <div className="overflow-hidden rounded-2xl shadow-sm">
+            <JobContextBanner job={job} />
+            <WeeklyApplicationGoal compact />
+          </div>
+          <div className="mt-4">
+            <JobCard job={job} />
+          </div>
           <div className="mt-4 flex items-center justify-between gap-3">
             <button
               className="rounded-xl border border-slate-300 px-4 py-3 font-bold disabled:opacity-40"
@@ -1926,11 +1959,11 @@ export function JobDetailsPage() {
       ) : !job ? (
         <p>Loading job details…</p>
       ) : (
-        <article className="mx-auto max-w-3xl rounded-3xl bg-white p-6 shadow-sm">
-          <p className="font-bold capitalize text-brand-purple">
-            {job.employment_type.replace("_", " ")}
-          </p>
-          <h1 className="mt-2 text-3xl font-black">{job.title}</h1>
+        <article className="mx-auto max-w-3xl overflow-hidden rounded-3xl bg-white shadow-sm">
+          <JobContextBanner job={job} />
+          <WeeklyApplicationGoal compact />
+          <div className="p-6">
+            <h1 className="text-3xl font-black">{job.title}</h1>
           <p className="mt-2 font-semibold text-slate-600">
             {job.employers?.[0]?.company_name || "Employer"}
           </p>
@@ -1984,7 +2017,8 @@ export function JobDetailsPage() {
               Apply
             </Link>
           </div>
-          {note && <p className="mt-4 font-medium text-teal-800">{note}</p>}
+            {note && <p className="mt-4 font-medium text-teal-800">{note}</p>}
+          </div>
         </article>
       )}
     </Shell>
