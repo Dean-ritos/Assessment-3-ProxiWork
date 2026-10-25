@@ -1364,10 +1364,12 @@ function useWeeklyApplicationGoal() {
 
 function WeeklyApplicationGoal({
   compact = false,
+  wide = false,
   goal,
   applied,
 }: {
   compact?: boolean;
+  wide?: boolean;
   goal: number | null;
   applied: number;
 }) {
@@ -1381,7 +1383,9 @@ function WeeklyApplicationGoal({
       className={
         compact
           ? "bg-[#7754E8] px-4 py-3 text-white"
-          : "mt-6 rounded-2xl bg-[#7754E8] p-5 text-white shadow-sm"
+          : wide
+            ? "bg-[#7754E8] px-5 py-4 text-white shadow-sm"
+            : "mt-6 rounded-2xl bg-[#7754E8] p-5 text-white shadow-sm"
       }
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -1393,7 +1397,7 @@ function WeeklyApplicationGoal({
           ) : (
             <>
               <p className="text-sm font-bold text-white/85">Weekly application goal</p>
-              <h2 className="mt-1 text-xl font-black">
+              <h2 className={`${wide ? "mt-0.5 text-lg" : "mt-1 text-xl"} font-black`}>
                 {applied} of {goal} applications completed
               </h2>
             </>
@@ -1412,7 +1416,7 @@ function WeeklyApplicationGoal({
         aria-valuemax={goal}
         aria-valuemin={0}
         aria-valuenow={Math.min(applied, goal)}
-        className={`${compact ? "mt-2 h-2" : "mt-4 h-3"} overflow-hidden rounded-full bg-white/25`}
+        className={`${compact ? "mt-2 h-2" : wide ? "mt-3 h-2.5" : "mt-4 h-3"} overflow-hidden rounded-full bg-white/25`}
         role="progressbar"
       >
         <div className="h-full rounded-full bg-white" style={{ width: `${percent}%` }} />
@@ -1617,7 +1621,7 @@ export function SwipePage() {
   const job = list[activeIndex];
   const weeklyGoal = useWeeklyApplicationGoal();
   return (
-    <Shell>
+    <Shell mobileBanner={<WeeklyApplicationGoal compact {...weeklyGoal} />}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-3xl font-black">Heres some listings for you</h1>
         <JobViewSwitch view="swipe" />
@@ -1629,10 +1633,9 @@ export function SwipePage() {
           <ErrorBox>{error}</ErrorBox>
         </div>
       ) : job ? (
-        <section className="mx-auto mt-6 max-w-xl">
-          <div className="overflow-hidden rounded-2xl shadow-sm">
-            <JobContextBanner job={job} />
-            <WeeklyApplicationGoal compact {...weeklyGoal} />
+        <section className="mx-auto mt-6 max-w-xl md:max-w-3xl">
+          <div className="hidden overflow-hidden rounded-2xl shadow-sm md:block">
+            <WeeklyApplicationGoal wide {...weeklyGoal} />
           </div>
           <div className="mt-4">
             <JobCard job={job} />
@@ -1970,7 +1973,7 @@ export function JobDetailsPage() {
       .catch((issue) => setError(issue.message));
   }, [id]);
   return (
-    <Shell>
+    <Shell mobileBanner={<WeeklyApplicationGoal compact {...weeklyGoal} />}>
       <button
         className="mb-5 inline-flex items-center gap-2 font-bold text-brand-purple hover:text-violet-700"
         onClick={goBack}
@@ -1986,7 +1989,9 @@ export function JobDetailsPage() {
       ) : (
         <article className="mx-auto max-w-3xl overflow-hidden rounded-3xl bg-white shadow-sm">
           <JobContextBanner job={job} />
-          <WeeklyApplicationGoal compact {...weeklyGoal} />
+          <div className="hidden md:block">
+            <WeeklyApplicationGoal compact {...weeklyGoal} />
+          </div>
           <div className="p-6">
             <h1 className="text-3xl font-black">{job.title}</h1>
           <p className="mt-2 font-semibold text-slate-600">
