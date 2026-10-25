@@ -55,7 +55,7 @@ export function Header({ logoTo = "/app/search" }: { logoTo?: string }) {
             src={shortLogo}
           />
           <span className="text-2xl font-black tracking-tight">
-            <span className="text-brand-purple">Proxi</span>
+            <span className="text-[#0878F9]">Proxi</span>
             <span className="text-brand-teal">Work</span>
           </span>
         </Link>
