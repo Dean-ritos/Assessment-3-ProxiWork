@@ -26,6 +26,7 @@ export type EmployerJob = {
   postcode: string;
   status: "draft" | "published" | "closed";
   created_at: string;
+  skills?: string[];
 };
 
 export type EmployerJobInput = Omit<
@@ -71,26 +72,36 @@ export async function employerJobs() {
   if (!employer) return [];
   const { data, error } = await client()
     .from("jobs")
-    .select("*")
+    .select("*,job_skills(skills(name))")
     .eq("employer_id", employer.id)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as EmployerJob[];
+  return (data ?? []).map((job) => ({ ...job, skills: (job.job_skills ?? []).flatMap((item: { skills: { name: string }[] | null }) => item.skills?.map((skill) => skill.name) ?? []) })) as EmployerJob[];
 }
 
 export async function saveEmployerJob(
   employerId: string,
-  input: EmployerJobInput,
+  input: EmployerJobInput & { skills?: string[] },
   jobId?: string,
 ) {
   const db = client();
-  const payload = { ...input, employer_id: employerId };
+  const { skills = [], ...jobInput } = input;
+  const payload = { ...jobInput, employer_id: employerId };
   const request = jobId
     ? db.from("jobs").update(payload).eq("id", jobId)
     : db.from("jobs").insert(payload);
   const { data, error } = await request.select("*").single();
   if (error) throw error;
-  return data as EmployerJob;
+  const job = data as EmployerJob;
+  const normalisedSkills = [...new Set(skills.map((skill) => skill.trim()).filter(Boolean))];
+  await db.from("job_skills").delete().eq("job_id", job.id);
+  if (normalisedSkills.length) {
+    const { data: rows, error: skillError } = await db.from("skills").upsert(normalisedSkills.map((name) => ({ name, normalised_name: name.toLowerCase() })), { onConflict: "normalised_name" }).select("id");
+    if (skillError) throw skillError;
+    const { error: joinError } = await db.from("job_skills").insert((rows ?? []).map((skill) => ({ job_id: job.id, skill_id: skill.id })));
+    if (joinError) throw joinError;
+  }
+  return { ...job, skills: normalisedSkills };
 }
 
 export async function employerApplicationCounts() {
@@ -101,3 +112,14 @@ export async function employerApplicationCounts() {
     return counts;
   }, {});
 }
+
+export type EmployerMetrics = { company_page_views: number; job_listing_views: number; recent_company_page_views: number };
+export type EmployerApplicant = { application_id: string; job_id: string; job_title: string; applicant_id: string; first_name: string; last_name: string; suburb: string; state: string; status: string; applied_at: string; skills: string[]; cover_letter: string | null };
+export type EmployerApplicantDetail = EmployerApplicant & { experiences: Array<Record<string, unknown>>; education_entries: Array<Record<string, unknown>> };
+export async function employerMetrics() { const { data, error } = await client().rpc("employer_dashboard_metrics"); if (error) throw error; return (data?.[0] ?? { company_page_views: 0, job_listing_views: 0, recent_company_page_views: 0 }) as EmployerMetrics; }
+export async function employerJobViewCounts() { const { data, error } = await client().rpc("employer_job_view_counts"); if (error) throw error; return (data ?? []) as Array<{ job_id: string; view_count: number }>; }
+export async function employerApplicants() { const { data, error } = await client().rpc("employer_applicants"); if (error) throw error; return (data ?? []) as EmployerApplicant[]; }
+export async function employerApplicantDetail(applicationId: string) { const { data, error } = await client().rpc("employer_applicant_detail", { target_application_id: applicationId }); if (error) throw error; return (data?.[0] ?? null) as EmployerApplicantDetail | null; }
+export async function updateEmployerApplicationStatus(applicationId: string, status: string) { const { error } = await client().rpc("update_employer_application_status", { target_application_id: applicationId, next_status: status }); if (error) throw error; }
+export async function publicEmployer(employerId: string) { const { data, error } = await client().from("employers").select("id,company_name,description,website,industry,suburb,state,verification_status,jobs(id,title,description,employment_type,suburb,state,status,job_skills(skills(name)))").eq("id", employerId).eq("verification_status", "verified").maybeSingle(); if (error) throw error; return data; }
+export async function recordCompanyPageVisit(employerId: string) { if (!supabase) return; const key = "proxiwork:visitor-token"; let token = localStorage.getItem(key); if (!token) { token = crypto.randomUUID(); localStorage.setItem(key, token); } await supabase.rpc("record_employer_page_visit", { target_employer_id: employerId, browser_visitor_token: token }); }

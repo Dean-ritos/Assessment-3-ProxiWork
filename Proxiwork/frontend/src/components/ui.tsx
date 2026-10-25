@@ -1,5 +1,8 @@
 import { Link, NavLink } from "react-router-dom";
-import { Heart, List, PanelsTopLeft, Search, UserRound } from "lucide-react";
+import { Heart, Inbox, List, LogOut, PanelsTopLeft, Search, UserRound, X } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../lib/auth";
 import shortLogo from "../assets/proxiwork-logo-short.png";
 import wordmark from "../assets/proxiwork-logo.png";
 
@@ -84,7 +87,15 @@ export function JobViewSwitch({ view }: { view: "list" | "swipe" }) {
   );
 }
 
-export function Header({ logoTo = "/app/search" }: { logoTo?: string }) {
+export function Header({ logoTo = "/app/search", mode = "candidate" }: { logoTo?: string; mode?: "candidate" | "employer" }) {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
+  const links = mode === "employer"
+    ? [["Dashboard", "/employer/dashboard"], ["Company", "/employer/company"], ["Profile", "/employer/company"]]
+    : [["Find jobs", "/app/search"], ["Activity", "/app/activity"], ["Profile", "/app/profile"]];
+  const inboxTo = mode === "employer" ? "/employer/applicants" : "/app/activity";
+  const logout = async () => { await signOut(); navigate(mode === "employer" ? "/employer/login" : "/login", { replace: true }); };
   return (
     <header className="border-b-4 border-brand-teal bg-white px-5 py-4">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-5">
@@ -106,12 +117,13 @@ export function Header({ logoTo = "/app/search" }: { logoTo?: string }) {
             <span className="text-brand-teal">Work</span>
           </span>
         </Link>
-        <nav className="hidden gap-5 text-sm font-bold md:flex">
-          <Link to="/app/search">Find jobs</Link>
-          <Link to="/app/activity">Activity</Link>
-          <Link to="/app/profile">Profile</Link>
+        <nav className="hidden items-center gap-5 text-sm font-bold md:flex">
+          {links.map(([label, to]) => <Link key={label} to={to}>{label}</Link>)}
+          <Link aria-label="Inbox" className="rounded-lg p-2 text-brand-purple hover:bg-violet-50" to={inboxTo}><Inbox size={20} /></Link>
+          <button className="inline-flex items-center gap-2 rounded-xl bg-[#7754E8] px-4 py-2 text-white hover:bg-violet-700" onClick={() => setConfirming(true)} type="button"><LogOut size={17} />Log out</button>
         </nav>
       </div>
+      {confirming && <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-5" role="dialog"><section className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-black">Log out?</h2><p className="mt-2 text-slate-600">You will need to sign in again to continue.</p></div><button aria-label="Close" className="rounded-lg p-1 hover:bg-slate-100" onClick={() => setConfirming(false)}><X size={20} /></button></div><div className="mt-6 flex justify-end gap-3"><button className="rounded-xl border px-4 py-2 font-bold" onClick={() => setConfirming(false)}>Cancel</button><button className="rounded-xl bg-[#7754E8] px-4 py-2 font-bold text-white" onClick={() => void logout()}>Log out</button></div></section></div>}
     </header>
   );
 }

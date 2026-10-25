@@ -9,10 +9,13 @@ import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import {
   employerApplicationCounts,
+  employerApplicantDetail,
+  employerApplicants,
   employerJobs,
   getEmployer,
   saveEmployer,
   saveEmployerJob,
+  updateEmployerApplicationStatus,
   type Employer,
   type EmployerJob,
 } from "../services/employer";
@@ -63,7 +66,7 @@ const blankCompany: CompanyForm = {
 function EmployerShell({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Header logoTo="/employer/dashboard" />
+      <Header logoTo="/employer/dashboard" mode="employer" />
       <main className="mx-auto min-h-screen max-w-6xl p-5 pb-10">{children}</main>
     </>
   );
@@ -218,4 +221,18 @@ export function EmployerVacancyPage() {
   useEffect(() => { void Promise.all([getEmployer(), employerJobs()]).then(([company, vacancies]) => { if (!company) { navigate("/employer/onboarding", { replace: true }); return; } setEmployer(company); const job = vacancies.find((item) => item.id === id); if (id && !job) setError("Vacancy not found."); if (job) reset({ title: job.title, description: job.description, responsibilities: job.responsibilities ?? "", requirements: job.requirements ?? "", experience_required: job.experience_required ?? "", employment_type: job.employment_type, suburb: job.suburb, state: job.state, postcode: job.postcode, status: job.status }); }).catch((issue) => setError(issue.message)); }, [id, navigate, reset]);
   const submit = async (value: VacancyForm) => { if (!employer) return; setError(""); try { await saveEmployerJob(employer.id, value, id); navigate("/employer/dashboard", { replace: true }); } catch (issue) { setError(issue instanceof Error ? issue.message : "Unable to save vacancy."); } };
   return <EmployerShell><div className="mx-auto max-w-3xl rounded-3xl bg-white p-6 shadow-sm"><p className="font-bold text-brand-teal">Employer portal</p><h1 className="mt-2 text-3xl font-black">{id ? "Edit vacancy" : "Post a vacancy"}</h1><form className="mt-6 space-y-5" onSubmit={handleSubmit(submit)}><Field label="Job title" error={errors.title?.message} {...register("title")} /><div className="grid gap-4 sm:grid-cols-3"><Field label="Suburb" error={errors.suburb?.message} {...register("suburb")} /><Field label="State" maxLength={3} error={errors.state?.message} {...register("state")} /><Field label="Postcode" inputMode="numeric" error={errors.postcode?.message} {...register("postcode")} /></div><label className="block text-sm font-bold">Employment type<select className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-3 font-normal" {...register("employment_type")}><option value="casual">Casual</option><option value="part_time">Part time</option><option value="full_time">Full time</option><option value="contract">Contract</option></select>{errors.employment_type && <span className="text-xs text-red-600">{errors.employment_type.message}</span>}</label><TextField label="Short description" error={errors.description?.message} {...register("description")} /><TextField label="What you'll do" error={errors.responsibilities?.message} placeholder="Use a new line for each key responsibility." {...register("responsibilities")} /><TextField label="What you'll bring" error={errors.requirements?.message} placeholder="Use a new line for each quality or capability." {...register("requirements")} /><TextField label="Experience required" error={errors.experience_required?.message} {...register("experience_required")} /><label className="block text-sm font-bold">Vacancy status<select className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-3 font-normal" {...register("status")}><option value="draft">Draft</option><option value="published">Published</option><option value="closed">Closed</option></select></label>{error && <ErrorBox>{error}</ErrorBox>}<div className="flex flex-wrap gap-3"><Button disabled={isSubmitting} type="submit">{isSubmitting ? "Saving…" : id ? "Save vacancy" : "Create vacancy"}</Button><Link className="rounded-xl border px-5 py-3 font-bold" to="/employer/dashboard">Cancel</Link></div></form></div></EmployerShell>;
+}
+
+export function EmployerApplicantsPage() {
+  const [items, setItems] = useState<Awaited<ReturnType<typeof employerApplicants>>>([]);
+  const [error, setError] = useState("");
+  useEffect(() => { void employerApplicants().then(setItems).catch((issue) => setError(issue.message)); }, []);
+  return <EmployerShell><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-bold text-brand-teal">Employer portal</p><h1 className="mt-1 text-3xl font-black">Applicants</h1></div><Link className="rounded-xl bg-[#7754E8] px-4 py-3 font-bold text-white" to="/employer/jobs/new">Post vacancy</Link></div>{error && <div className="mt-5"><ErrorBox>{error}</ErrorBox></div>}<section className="mt-6 space-y-3">{items.length ? items.map((item) => <Link className="block rounded-2xl bg-white p-5 shadow-sm hover:ring-2 hover:ring-brand-purple" key={item.application_id} to={`/employer/applicants/${item.application_id}`}><div className="flex flex-wrap justify-between gap-3"><div><h2 className="font-black">{item.first_name} {item.last_name}</h2><p className="text-sm text-slate-600">{item.job_title} · {item.suburb}, {item.state}</p></div><span className="rounded-full bg-violet-100 px-3 py-1 text-sm font-bold capitalize text-brand-purple">{item.status}</span></div>{item.skills.length > 0 && <p className="mt-3 text-sm text-slate-600">{item.skills.join(" · ")}</p>}</Link>) : <p className="rounded-2xl bg-white p-8 text-center text-slate-600">Applications for your vacancies will appear here.</p>}</section></EmployerShell>;
+}
+
+export function EmployerApplicantDetailPage() {
+  const { applicationId = "" } = useParams(); const [item, setItem] = useState<Awaited<ReturnType<typeof employerApplicantDetail>>>(null); const [error, setError] = useState("");
+  useEffect(() => { void employerApplicantDetail(applicationId).then(setItem).catch((issue) => setError(issue.message)); }, [applicationId]);
+  const update = async (status: string) => { try { await updateEmployerApplicationStatus(applicationId, status); setItem((current) => current ? { ...current, status } : current); } catch (issue) { setError(issue instanceof Error ? issue.message : "Unable to update application."); } };
+  return <EmployerShell><Link className="font-bold text-brand-purple" to="/employer/applicants">← Back to applicants</Link>{error && <div className="mt-5"><ErrorBox>{error}</ErrorBox></div>}{item && <section className="mt-5 rounded-3xl bg-white p-6 shadow-sm"><div className="flex flex-wrap justify-between gap-4"><div><p className="font-bold text-brand-teal">Applicant for {item.job_title}</p><h1 className="mt-1 text-3xl font-black">{item.first_name} {item.last_name}</h1><p className="mt-2 text-slate-600">{item.suburb}, {item.state}</p></div><select className="h-fit rounded-xl border px-3 py-2 font-bold capitalize" onChange={(event) => void update(event.target.value)} value={item.status}><option value="submitted">submitted</option><option value="reviewing">reviewing</option><option value="shortlisted">shortlisted</option><option value="rejected">rejected</option><option value="accepted">accepted</option></select></div><h2 className="mt-7 font-black">Skills</h2><p className="mt-2 text-slate-600">{item.skills.join(" · ") || "No skills listed"}</p>{item.cover_letter && <><h2 className="mt-7 font-black">Cover letter</h2><p className="mt-2 whitespace-pre-wrap text-slate-700">{item.cover_letter}</p></>}<h2 className="mt-7 font-black">Experience</h2>{item.experiences.length ? <div className="mt-3 space-y-3">{item.experiences.map((experience, index) => <article className="rounded-xl bg-slate-50 p-4" key={index}><p className="font-bold">{String(experience.position_title ?? "Position")}</p><p className="text-sm text-slate-600">{String(experience.company_name ?? "")}</p></article>)}</div> : <p className="mt-2 text-slate-600">No experience listed.</p>}</section>}</EmployerShell>;
 }

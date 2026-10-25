@@ -17,6 +17,8 @@ import {
 } from "./pages/pages";
 import {
   EmployerCompanyPage,
+  EmployerApplicantDetailPage,
+  EmployerApplicantsPage,
   EmployerDashboardPage,
   EmployerLoginPage,
   EmployerOnboardingPage,
@@ -123,6 +125,8 @@ export function App() {
           <Route path="/employer/onboarding" element={<EmployerOnboardingRoute />} />
           <Route path="/employer/dashboard" element={<EmployerRoute><EmployerDashboardPage /></EmployerRoute>} />
           <Route path="/employer/company" element={<EmployerRoute><EmployerCompanyPage /></EmployerRoute>} />
+          <Route path="/employer/applicants" element={<EmployerRoute><EmployerApplicantsPage /></EmployerRoute>} />
+          <Route path="/employer/applicants/:applicationId" element={<EmployerRoute><EmployerApplicantDetailPage /></EmployerRoute>} />
           <Route path="/employer/jobs/new" element={<EmployerRoute><EmployerVacancyPage /></EmployerRoute>} />
           <Route path="/employer/jobs/:id/edit" element={<EmployerRoute><EmployerVacancyPage /></EmployerRoute>} />
           <Route path="/onboarding" element={<OnboardingRoute />} />
