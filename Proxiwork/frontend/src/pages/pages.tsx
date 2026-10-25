@@ -1278,49 +1278,46 @@ export function OnboardingPage() {
 function JobCard({ job }: { job: Job }) {
   const location = useLocation();
   const [note, setNote] = useState("");
-  const label = job.employment_type.replace("_", " ");
   const saveJob = () => {
     void action(job.id, "saved")
       .then(() => setNote("Saved"))
       .catch((issue) => setNote(issue.message));
   };
   return (
-    <article className="rounded-2xl bg-white p-5 shadow-sm">
-      <p className="text-sm font-bold capitalize text-brand-purple">{label}</p>
-      <h2 className="text-xl font-black">{job.title}</h2>
-      <p className="font-semibold text-slate-600">
-        {job.employers?.[0]?.company_name || "Employer"}
-      </p>
-      <p className="mt-2 flex items-center gap-1 text-sm text-slate-500">
-        <MapPin size={15} />
-        {job.suburb}, {job.state}
-      </p>
-      <p className="mt-3 line-clamp-3 text-sm text-slate-600">
-        {job.description}
-      </p>
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Link
-          className="inline-flex items-center justify-center rounded-xl border border-brand-purple px-3 py-2 text-sm font-bold text-brand-purple"
-          state={{ from: `${location.pathname}${location.search}` }}
-          to={`/app/jobs/${job.id}`}
-        >
-          Details
-        </Link>
-        <button
-          className="rounded-xl border px-3 py-2 text-sm font-bold"
-          onClick={saveJob}
-        >
-          Save
-        </button>
-        <Link
-          className="inline-flex items-center justify-center rounded-xl bg-[#0878F9] px-5 py-3 font-bold text-white shadow-sm hover:bg-[#0667D4]"
-          state={{ from: `${location.pathname}${location.search}` }}
-          to={`/app/jobs/${job.id}/apply`}
-        >
-          Apply
-        </Link>
+    <article className="overflow-hidden rounded-2xl bg-white shadow-sm">
+      <JobContextBanner job={job} />
+      <div className="p-5">
+        <h2 className="text-xl font-black">{job.title}</h2>
+        <p className="font-semibold text-slate-600">
+          {job.employers?.[0]?.company_name || "Employer"}
+        </p>
+        <p className="mt-3 line-clamp-3 text-sm text-slate-600">
+          {job.description}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Link
+            className="inline-flex items-center justify-center rounded-xl border border-brand-purple px-3 py-2 text-sm font-bold text-brand-purple"
+            state={{ from: `${location.pathname}${location.search}` }}
+            to={`/app/jobs/${job.id}`}
+          >
+            Details
+          </Link>
+          <button
+            className="rounded-xl border px-3 py-2 text-sm font-bold"
+            onClick={saveJob}
+          >
+            Save
+          </button>
+          <Link
+            className="inline-flex items-center justify-center rounded-xl bg-[#0878F9] px-5 py-3 font-bold text-white shadow-sm hover:bg-[#0667D4]"
+            state={{ from: `${location.pathname}${location.search}` }}
+            to={`/app/jobs/${job.id}/apply`}
+          >
+            Apply
+          </Link>
+        </div>
+        {note && <p className="mt-3 text-sm font-medium text-teal-800">{note}</p>}
       </div>
-      {note && <p className="mt-3 text-sm font-medium text-teal-800">{note}</p>}
     </article>
   );
 }
@@ -1329,7 +1326,7 @@ function JobContextBanner({ job }: { job: Job }) {
   return (
     <section className="flex flex-wrap items-center justify-between gap-2 bg-brand-teal px-4 py-3 text-white">
       <p className="text-sm font-black capitalize">
-        {job.employment_type.replace("_", " ")} opportunity
+        {job.employment_type.replace("_", " ")}
       </p>
       <p className="flex items-center gap-1 text-sm font-semibold text-white/90">
         <MapPin size={15} />
