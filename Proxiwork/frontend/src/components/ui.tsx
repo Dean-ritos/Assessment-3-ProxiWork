@@ -1,5 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
-import { Heart, Search, UserRound } from "lucide-react";
+import { Heart, List, PanelsTopLeft, Search, UserRound } from "lucide-react";
 import shortLogo from "../assets/proxiwork-logo-short.png";
 import wordmark from "../assets/proxiwork-logo.png";
 
@@ -26,17 +26,64 @@ export function Logo({
 }
 export function Button({
   children,
+  tone = "purple",
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  tone?: "purple" | "blue";
+}) {
   return (
     <button
-      className="rounded-xl bg-brand-purple px-5 py-3 font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-50"
+      className={`rounded-xl px-5 py-3 font-bold text-white shadow-sm disabled:opacity-50 ${
+        tone === "blue"
+          ? "bg-[#0878F9] hover:bg-[#0667D4]"
+          : "bg-brand-purple hover:bg-violet-700"
+      }`}
       {...props}
     >
       {children}
     </button>
   );
 }
+
+export function JobViewSwitch({ view }: { view: "list" | "swipe" }) {
+  const options = [
+    { to: "/app/search", label: "List view", value: "list", Icon: List },
+    {
+      to: "/app/swipe",
+      label: "Swipe view",
+      value: "swipe",
+      Icon: PanelsTopLeft,
+    },
+  ] as const;
+
+  return (
+    <nav
+      aria-label="Job view"
+      className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
+    >
+      {options.map(({ to, label, value, Icon }) => {
+        const active = view === value;
+        return (
+          <Link
+            aria-current={active ? "page" : undefined}
+            aria-label={label}
+            className={`inline-flex h-10 w-11 items-center justify-center rounded-lg transition-colors ${
+              active
+                ? "bg-teal-100 text-brand-teal shadow-sm"
+                : "text-slate-500 hover:bg-slate-100 hover:text-brand-teal"
+            }`}
+            key={value}
+            to={to}
+          >
+            <Icon aria-hidden="true" size={21} />
+            <span className="sr-only">{label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 export function Header({ logoTo = "/app/search" }: { logoTo?: string }) {
   return (
     <header className="border-b-4 border-brand-teal bg-white px-5 py-4">

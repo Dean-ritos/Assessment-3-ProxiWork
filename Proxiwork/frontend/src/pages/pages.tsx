@@ -12,7 +12,14 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { BottomNav, Button, ErrorBox, Header, Logo } from "../components/ui";
+import {
+  BottomNav,
+  Button,
+  ErrorBox,
+  Header,
+  JobViewSwitch,
+  Logo,
+} from "../components/ui";
 import { supabase, supabaseConfigured } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { action, activity, apply, jobs, type Job } from "../services/jobs";
@@ -279,10 +286,10 @@ export function LandingPage() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link to="/register">
-              <Button>Get started</Button>
+              <Button tone="blue">Get started</Button>
             </Link>
             <Link
-              className="rounded-xl border border-brand-purple px-5 py-3 font-bold text-brand-purple"
+              className="rounded-xl border border-[#0878F9] px-5 py-3 font-bold text-[#0878F9] hover:bg-blue-50"
               to="/login"
             >
               Log in
@@ -328,7 +335,7 @@ export function LoginPage() {
           {...register("password")}
         />
         {error && <ErrorBox>{error}</ErrorBox>}
-        <Button disabled={isSubmitting} type="submit">
+        <Button disabled={isSubmitting} tone="blue" type="submit">
           {isSubmitting ? "Signing in…" : "Log in"}
         </Button>
       </form>
@@ -422,7 +429,7 @@ export function RegisterPage() {
             {message}
           </p>
         )}
-        <Button disabled={isSubmitting} type="submit">
+        <Button disabled={isSubmitting} tone="blue" type="submit">
           {isSubmitting ? "Creating account…" : "Create account"}
         </Button>
       </form>
@@ -464,7 +471,9 @@ export function ResetPasswordPage() {
             {message}
           </p>
         )}
-        <Button type="submit">Send reset link</Button>
+        <Button tone="blue" type="submit">
+          Send reset link
+        </Button>
       </form>
     </AuthShell>
   );
@@ -1249,9 +1258,7 @@ export function SearchPage() {
           <p className="font-bold text-brand-teal">Recommended for you</p>
           <h1 className="text-3xl font-black">Find local work</h1>
         </div>
-        <Link className="font-bold text-brand-purple" to="/app/swipe">
-          Swipe mode
-        </Link>
+        <JobViewSwitch view="list" />
       </div>
       <form
         className="mt-6 grid gap-3 rounded-2xl bg-white p-4 shadow-sm md:grid-cols-[1fr_1fr_180px_auto]"
@@ -1363,7 +1370,13 @@ export function SearchPage() {
 export function SwipePage() {
   return (
     <Shell>
-      <h1 className="text-3xl font-black">Swipe jobs</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="font-bold text-brand-teal">Recommended for you</p>
+          <h1 className="text-3xl font-black">Swipe jobs</h1>
+        </div>
+        <JobViewSwitch view="swipe" />
+      </div>
       <p className="mt-3 rounded-2xl bg-white p-8">
         Use search for a list view with saved search history, or review
         available local opportunities here as new listings are added.
