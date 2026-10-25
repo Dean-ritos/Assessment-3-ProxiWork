@@ -175,7 +175,7 @@ export function LandingPage() {
     <main className="min-h-screen bg-brand-pale">
       <div className="h-5 bg-brand-teal" />
       <section className="mx-auto flex min-h-[calc(100vh-20px)] max-w-6xl flex-col justify-between p-6 md:p-12">
-        <Logo />
+        <Logo className="h-[min(600px,calc(100vw-3rem))] w-[min(600px,calc(100vw-3rem))]" />
         <div className="max-w-3xl py-16">
           <p className="inline-block rounded-full bg-teal-100 px-4 py-2 text-sm font-bold text-teal-800">
             Local opportunities, made simpler
