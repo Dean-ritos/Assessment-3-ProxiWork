@@ -676,8 +676,10 @@ export function OnboardingPage() {
   const [profile, setProfile] = useState<ProfileDraft>(blankProfile);
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
-  const [experiences, setExperiences] = useState<Experience[]>([]);
-  const [education, setEducation] = useState<Education[]>([]);
+  const [experiences, setExperiences] = useState<Experience[]>([
+    blankExperience(),
+  ]);
+  const [education, setEducation] = useState<Education[]>([blankEducation()]);
   const [cvPath, setCvPath] = useState<string | null>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
@@ -694,8 +696,12 @@ export function OnboardingPage() {
         } = bundle.profile;
         setProfile(draft);
         setSkills(bundle.skills);
-        setExperiences(bundle.experiences);
-        setEducation(bundle.education);
+        setExperiences(
+          bundle.experiences.length ? bundle.experiences : [blankExperience()],
+        );
+        setEducation(
+          bundle.education.length ? bundle.education : [blankEducation()],
+        );
         setCvPath(resume_path);
       })
       .catch((issue) => setError(issue.message))
@@ -990,9 +996,26 @@ export function OnboardingPage() {
           )}
           {step === 5 && (
             <div>
+              <h2 className="font-black">Add your work experience</h2>
               <p className="mb-4 text-slate-600">
-                Optional. Add jobs you have held. You can change these later.
+                <span className="block">Add jobs you have held.</span>
+                <span className="block text-sm">
+                  Optional — you can change these later.
+                </span>
               </p>
+              <button
+                className="mb-4 font-bold text-brand-purple underline underline-offset-4"
+                onClick={() => setExperiences([])}
+                type="button"
+              >
+                I&apos;m new to the workforce
+              </button>
+              {experiences.length === 0 && (
+                <p className="mb-4 rounded-xl bg-brand-pale p-3 text-sm text-slate-700">
+                  No work experience will be added right now. You can add it
+                  later.
+                </p>
+              )}
               <ExperienceEditor
                 entries={experiences}
                 setEntries={setExperiences}
@@ -1001,8 +1024,14 @@ export function OnboardingPage() {
           )}
           {step === 6 && (
             <div>
+              <h2 className="font-black">Add your qualifications</h2>
               <p className="mb-4 text-slate-600">
-                Optional. Add your studies and qualifications.
+                <span className="block">
+                  Add your studies and qualifications.
+                </span>
+                <span className="block text-sm">
+                  Optional — you can change these later.
+                </span>
               </p>
               <EducationEditor entries={education} setEntries={setEducation} />
             </div>

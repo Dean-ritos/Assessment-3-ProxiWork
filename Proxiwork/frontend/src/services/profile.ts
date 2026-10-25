@@ -47,9 +47,30 @@ function client() {
 }
 
 export async function getProfile() {
-  const { data, error } = await client().from("profiles").select("*").single();
+  const db = client();
+  const { data, error } = await db.from("profiles").select("*").maybeSingle();
   if (error) throw error;
-  return data as Profile;
+  if (data) return data as Profile;
+
+  const { data: user, error: userError } = await db.auth.getUser();
+  if (userError) throw userError;
+  if (!user.user)
+    throw new Error("You need to sign in before loading your profile.");
+
+  const { data: profile, error: profileError } = await db
+    .from("profiles")
+    .upsert(
+      {
+        id: user.user.id,
+        first_name: user.user.user_metadata.first_name ?? "",
+        last_name: user.user.user_metadata.last_name ?? "",
+      },
+      { onConflict: "id" },
+    )
+    .select("*")
+    .single();
+  if (profileError) throw profileError;
+  return profile as Profile;
 }
 
 export async function getProfileBundle() {
