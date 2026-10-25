@@ -1151,6 +1151,22 @@ export function OnboardingPage() {
 function JobCard({ job }: { job: Job }) {
   const [note, setNote] = useState("");
   const label = job.employment_type.replace("_", " ");
+  const saveJob = () => {
+    if (job.is_example)
+      return setNote("This is an example listing. Saving is not available.");
+    void action(job.id, "saved")
+      .then(() => setNote("Saved"))
+      .catch((issue) => setNote(issue.message));
+  };
+  const applyForJob = () => {
+    if (job.is_example)
+      return setNote(
+        "This is an example listing. Applications are not available.",
+      );
+    void apply(job.id)
+      .then(() => setNote("Application sent"))
+      .catch((issue) => setNote(issue.message));
+  };
   return (
     <article className="rounded-2xl bg-white p-5 shadow-sm">
       <p className="text-sm font-bold capitalize text-brand-purple">{label}</p>
@@ -1174,23 +1190,11 @@ function JobCard({ job }: { job: Job }) {
         </Link>
         <button
           className="rounded-xl border px-3 py-2 text-sm font-bold"
-          onClick={() =>
-            void action(job.id, "saved")
-              .then(() => setNote("Saved"))
-              .catch((issue) => setNote(issue.message))
-          }
+          onClick={saveJob}
         >
           Save
         </button>
-        <Button
-          onClick={() =>
-            void apply(job.id)
-              .then(() => setNote("Application sent"))
-              .catch((issue) => setNote(issue.message))
-          }
-        >
-          Apply
-        </Button>
+        <Button onClick={applyForJob}>Apply</Button>
       </div>
       {note && <p className="mt-3 text-sm font-medium text-teal-800">{note}</p>}
     </article>
@@ -1254,10 +1258,7 @@ export function SearchPage() {
   return (
     <Shell>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="font-bold text-brand-teal">Recommended for you</p>
-          <h1 className="text-3xl font-black">Find local work</h1>
-        </div>
+        <h1 className="text-3xl font-black">Find local jobs</h1>
         <JobViewSwitch view="list" />
       </div>
       <form
@@ -1344,7 +1345,7 @@ export function SearchPage() {
         </section>
       )}
       <section className="mt-7">
-        <h2 className="text-lg font-black">Available jobs</h2>
+        <h2 className="text-lg font-black">Recommended Jobs for you</h2>
         {loading ? (
           <p className="mt-5">Loading jobs…</p>
         ) : error ? (
@@ -1368,19 +1369,61 @@ export function SearchPage() {
 }
 
 export function SwipePage() {
+  const [list, setList] = useState<Job[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    void jobs()
+      .then(setList)
+      .catch((issue) =>
+        setError(
+          issue instanceof Error ? issue.message : "Unable to load jobs.",
+        ),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+  const job = list[activeIndex];
   return (
     <Shell>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="font-bold text-brand-teal">Recommended for you</p>
-          <h1 className="text-3xl font-black">Swipe jobs</h1>
-        </div>
+        <h1 className="text-3xl font-black">Heres some listings for you</h1>
         <JobViewSwitch view="swipe" />
       </div>
-      <p className="mt-3 rounded-2xl bg-white p-8">
-        Use search for a list view with saved search history, or review
-        available local opportunities here as new listings are added.
-      </p>
+      {loading ? (
+        <p className="mt-6">Loading jobs…</p>
+      ) : error ? (
+        <div className="mt-6">
+          <ErrorBox>{error}</ErrorBox>
+        </div>
+      ) : job ? (
+        <section className="mx-auto mt-6 max-w-xl">
+          <JobCard job={job} />
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <button
+              className="rounded-xl border border-slate-300 px-4 py-3 font-bold disabled:opacity-40"
+              disabled={activeIndex === 0}
+              onClick={() => setActiveIndex((index) => index - 1)}
+            >
+              Previous
+            </button>
+            <p className="text-sm font-bold text-slate-600">
+              {activeIndex + 1} of {list.length}
+            </p>
+            <button
+              className="rounded-xl bg-brand-teal px-4 py-3 font-bold text-white disabled:opacity-40"
+              disabled={activeIndex === list.length - 1}
+              onClick={() => setActiveIndex((index) => index + 1)}
+            >
+              Next listing
+            </button>
+          </div>
+        </section>
+      ) : (
+        <p className="mt-6 rounded-2xl bg-white p-8 text-center">
+          No listings are available right now.
+        </p>
+      )}
     </Shell>
   );
 }
@@ -1589,6 +1632,7 @@ export function JobDetailsPage() {
   const { id } = useParams();
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
+  const [note, setNote] = useState("");
   useEffect(() => {
     void jobs()
       .then((items) => setJob(items.find((item) => item.id === id) ?? null))
@@ -1616,15 +1660,52 @@ export function JobDetailsPage() {
           <p className="mt-6 whitespace-pre-wrap text-slate-700">
             {job.description}
           </p>
+          {job.responsibilities && (
+            <section className="mt-7 border-t border-slate-200 pt-6">
+              <h2 className="text-xl font-black">What you&apos;ll do</h2>
+              <p className="mt-3 whitespace-pre-wrap text-slate-700">
+                {job.responsibilities}
+              </p>
+            </section>
+          )}
+          {job.requirements && (
+            <section className="mt-7 border-t border-slate-200 pt-6">
+              <h2 className="text-xl font-black">What you&apos;ll bring</h2>
+              <p className="mt-3 whitespace-pre-wrap text-slate-700">
+                {job.requirements}
+              </p>
+            </section>
+          )}
           <div className="mt-8 flex gap-3">
             <button
               className="rounded-xl border px-4 py-3 font-bold"
-              onClick={() => void action(job.id, "saved")}
+              onClick={() => {
+                if (job.is_example)
+                  return setNote(
+                    "This is an example listing. Saving is not available.",
+                  );
+                void action(job.id, "saved")
+                  .then(() => setNote("Saved"))
+                  .catch((issue) => setNote(issue.message));
+              }}
             >
               Save job
             </button>
-            <Button onClick={() => void apply(job.id)}>Apply</Button>
+            <Button
+              onClick={() => {
+                if (job.is_example)
+                  return setNote(
+                    "This is an example listing. Applications are not available.",
+                  );
+                void apply(job.id)
+                  .then(() => setNote("Application sent"))
+                  .catch((issue) => setNote(issue.message));
+              }}
+            >
+              Apply
+            </Button>
           </div>
+          {note && <p className="mt-4 font-medium text-teal-800">{note}</p>}
         </article>
       )}
     </Shell>
