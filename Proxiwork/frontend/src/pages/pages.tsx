@@ -1957,6 +1957,14 @@ export function JobDetailsPage() {
               </p>
             </section>
           )}
+          {job.experience_required && (
+            <section className="mt-7 border-t border-slate-200 pt-6">
+              <h2 className="text-xl font-black">Experience required</h2>
+              <p className="mt-3 whitespace-pre-wrap text-slate-700">
+                {preserveJobLineBreaks(job.experience_required)}
+              </p>
+            </section>
+          )}
           <div className="mt-8 flex gap-3">
             <button
               className="rounded-xl border px-4 py-3 font-bold"

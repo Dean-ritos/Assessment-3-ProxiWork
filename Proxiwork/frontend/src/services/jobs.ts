@@ -5,6 +5,7 @@ export type Job = {
   description: string;
   responsibilities?: string | null;
   requirements?: string | null;
+  experience_required?: string | null;
   employment_type: string;
   suburb: string;
   state: string;
@@ -124,7 +125,7 @@ export async function jobs(filters: JobFilters = {}) {
   let request = supabase
     .from("jobs")
     .select(
-      "id,title,description,responsibilities,requirements,employment_type,suburb,state,status,employers(company_name)",
+      "id,title,description,responsibilities,requirements,experience_required,employment_type,suburb,state,status,employers(company_name)",
     )
     .eq("status", "published")
     .order("created_at", { ascending: false });

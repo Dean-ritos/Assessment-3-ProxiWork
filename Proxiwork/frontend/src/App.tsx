@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
-import { supabase } from "./lib/supabase";
 import {
   ActivityPage,
   JobApplicationPage,
@@ -84,33 +82,6 @@ function LandingPageWithEmployerPortal() {
   );
 }
 
-function JobDetailsWithExperience() {
-  const { id } = useParams();
-  const [experience, setExperience] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!supabase || !id) return;
-    void supabase
-      .from("jobs")
-      .select("experience_required")
-      .eq("id", id)
-      .maybeSingle()
-      .then(({ data }) => setExperience(data?.experience_required ?? null));
-  }, [id]);
-
-  return (
-    <>
-      <JobDetailsPage />
-      {experience && (
-        <section className="mx-auto -mt-24 mb-8 max-w-3xl rounded-3xl bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-black">Experience required</h2>
-          <p className="mt-3 whitespace-pre-wrap text-slate-700">{experience}</p>
-        </section>
-      )}
-    </>
-  );
-}
-
 export function App() {
   return (
     <BrowserRouter>
@@ -166,7 +137,7 @@ export function App() {
             path="/app/jobs/:id"
             element={
               <ProtectedRoute>
-                <JobDetailsWithExperience />
+                <JobDetailsPage />
               </ProtectedRoute>
             }
           />

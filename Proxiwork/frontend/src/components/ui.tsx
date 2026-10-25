@@ -134,13 +134,13 @@ export function BottomNav() {
     [UserRound, "/app/profile", "Profile"],
   ] as const;
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 flex justify-around border-t bg-white pb-[env(safe-area-inset-bottom)] pt-2 md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-3 border-t bg-white pb-[env(safe-area-inset-bottom)] pt-2 md:hidden">
       {links.map(([Icon, to, label]) => (
         <NavLink
           key={to}
           to={to}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-1 px-2 py-2 text-xs ${isActive ? "text-brand-purple" : "text-slate-500"}`
+            `flex min-w-0 flex-col items-center justify-center gap-1 px-2 py-2 text-xs ${isActive ? "text-brand-purple" : "text-slate-500"}`
           }
         >
           <Icon size={20} />
