@@ -1991,17 +1991,10 @@ export function JobDetailsPage() {
       ) : (
         <article className="mx-auto max-w-3xl overflow-hidden rounded-3xl bg-white shadow-sm">
           <JobContextBanner job={job} />
-          <div className="hidden md:block">
-            <WeeklyApplicationGoal compact {...weeklyGoal} />
-          </div>
           <div className="p-6">
             <h1 className="text-3xl font-black">{job.title}</h1>
           <p className="mt-2 font-semibold text-slate-600">
             {job.employers?.[0]?.company_name || "Employer"}
-          </p>
-          <p className="mt-2 flex items-center gap-1 text-slate-500">
-            <MapPin size={17} />
-            {job.suburb}, {job.state}
           </p>
           <p className="mt-6 whitespace-pre-wrap text-slate-700">
             {job.description}
