@@ -1325,10 +1325,10 @@ function JobCard({ job }: { job: Job }) {
 function JobContextBanner({ job }: { job: Job }) {
   return (
     <section className="flex flex-wrap items-center justify-between gap-2 bg-brand-teal px-4 py-3 text-white">
-      <p className="text-sm font-black capitalize">
+      <p className="text-sm font-black capitalize [WebkitTextStroke:0.35px_#173765]">
         {job.employment_type.replace("_", " ")}
       </p>
-      <p className="flex items-center gap-1 text-sm font-semibold text-white/90">
+      <p className="flex items-center gap-1 text-sm font-semibold text-white/90 [WebkitTextStroke:0.35px_#173765]">
         <MapPin size={15} />
         {job.suburb}, {job.state}
       </p>
