@@ -73,6 +73,89 @@ const blankEducation = (): Education => ({
 });
 const employmentTypes = ["casual", "part_time", "full_time", "contract"];
 
+function formatMonthYear(date: string | null) {
+  if (!date) return "";
+  const match = /^(\d{4})-(\d{2})-\d{2}$/.exec(date);
+  return match ? `${match[2]}/${match[1]}` : "";
+}
+
+function parseMonthYear(value: string) {
+  const match = /^(0[1-9]|1[0-2])\/(\d{4})$/.exec(value.trim());
+  return match ? `${match[2]}-${match[1]}-01` : null;
+}
+
+function MonthYearInput({
+  label,
+  value,
+  onChange,
+  optional = false,
+}: {
+  label: string;
+  value: string | null;
+  onChange: (value: string | null) => void;
+  optional?: boolean;
+}) {
+  const [text, setText] = useState(() => formatMonthYear(value));
+  const [error, setError] = useState("");
+
+  useEffect(() => setText(formatMonthYear(value)), [value]);
+
+  const commit = () => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      setError("");
+      onChange(null);
+      return;
+    }
+    const date = parseMonthYear(trimmed);
+    if (!date) {
+      setError("Use MM/YYYY, for example 10/2026.");
+      return;
+    }
+    setError("");
+    onChange(date);
+  };
+
+  return (
+    <label className="block text-sm font-bold text-slate-700">
+      {label}
+      {optional ? " (optional)" : ""}
+      <input
+        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal disabled:bg-slate-100"
+        inputMode="numeric"
+        maxLength={7}
+        onBlur={commit}
+        onChange={(event) => setText(event.target.value)}
+        placeholder="MM/YYYY"
+        value={text}
+      />
+      {error && (
+        <span className="mt-1 block font-normal text-red-600">{error}</span>
+      )}
+    </label>
+  );
+}
+
+function hasExperienceContent(entry: Experience) {
+  return Boolean(
+    entry.company_name.trim() ||
+    entry.position_title.trim() ||
+    entry.start_date ||
+    entry.end_date ||
+    entry.description?.trim(),
+  );
+}
+
+function hasEducationContent(entry: Education) {
+  return Boolean(
+    entry.certification_level.trim() ||
+    entry.course_name.trim() ||
+    entry.institution.trim() ||
+    entry.start_date ||
+    entry.end_date,
+  );
+}
+
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -433,23 +516,25 @@ function ExperienceEditor({
                 update(index, { company_name: event.target.value })
               }
             />
-            <Input
+            <MonthYearInput
               label="Start date"
-              type="date"
               value={entry.start_date}
-              onChange={(event) =>
-                update(index, { start_date: event.target.value })
+              onChange={(start_date) =>
+                update(index, { start_date: start_date ?? "" })
               }
             />
-            <Input
-              label="End date"
-              type="date"
-              disabled={entry.is_current}
-              value={entry.end_date ?? ""}
-              onChange={(event) =>
-                update(index, { end_date: event.target.value || null })
-              }
-            />
+            {!entry.is_current ? (
+              <MonthYearInput
+                label="End date"
+                optional
+                value={entry.end_date}
+                onChange={(end_date) => update(index, { end_date })}
+              />
+            ) : (
+              <p className="self-end pb-2 text-sm text-slate-600">
+                Current role — no end date required.
+              </p>
+            )}
           </div>
           <label className="mt-3 flex gap-2 text-sm">
             <input
@@ -542,22 +627,19 @@ function EducationEditor({
                 update(index, { institution: event.target.value })
               }
             />
-            <Input
-              label="Start date (optional)"
-              type="date"
-              value={entry.start_date ?? ""}
-              onChange={(event) =>
-                update(index, { start_date: event.target.value || null })
-              }
+            <MonthYearInput
+              label="Start date"
+              optional
+              value={entry.start_date}
+              onChange={(start_date) => update(index, { start_date })}
             />
-            <Input
-              label="End date (optional)"
-              type="date"
-              disabled={entry.is_currently_studying}
-              value={entry.end_date ?? ""}
-              onChange={(event) =>
-                update(index, { end_date: event.target.value || null })
+            <MonthYearInput
+              label={
+                entry.is_currently_studying ? "Expected completion" : "End date"
               }
+              optional
+              value={entry.end_date}
+              onChange={(end_date) => update(index, { end_date })}
             />
           </div>
           <label className="mt-3 flex gap-2 text-sm">
@@ -567,7 +649,6 @@ function EducationEditor({
               onChange={(event) =>
                 update(index, {
                   is_currently_studying: event.target.checked,
-                  end_date: event.target.checked ? null : entry.end_date,
                 })
               }
             />
@@ -635,8 +716,15 @@ export function OnboardingPage() {
       return setError(
         "Add your first and last name before completing your profile.",
       );
+    const submittedExperiences = experiences
+      .filter(hasExperienceContent)
+      .map((item) => ({
+        ...item,
+        end_date: item.is_current ? null : item.end_date,
+      }));
+    const submittedEducation = education.filter(hasEducationContent);
     if (
-      experiences.some(
+      submittedExperiences.some(
         (item) =>
           !item.company_name.trim() ||
           !item.position_title.trim() ||
@@ -645,7 +733,7 @@ export function OnboardingPage() {
     )
       return setError("Complete or remove every work experience entry.");
     if (
-      education.some(
+      submittedEducation.some(
         (item) =>
           !item.certification_level.trim() ||
           !item.course_name.trim() ||
@@ -653,6 +741,19 @@ export function OnboardingPage() {
       )
     )
       return setError("Complete or remove every education entry.");
+    if (
+      submittedExperiences.some(
+        (item) => item.end_date && item.end_date < item.start_date,
+      )
+    )
+      return setError("Each work end date must be after its start date.");
+    if (
+      submittedEducation.some(
+        (item) =>
+          item.start_date && item.end_date && item.end_date < item.start_date,
+      )
+    )
+      return setError("Each education end date must be after its start date.");
     setSaving(true);
     try {
       let resumePath = cvPath;
@@ -664,8 +765,8 @@ export function OnboardingPage() {
           onboarding_completed: true,
         },
         skills,
-        experiences,
-        education,
+        experiences: submittedExperiences,
+        education: submittedEducation,
       });
       await refreshProfile();
       navigate("/app/search", { replace: true });

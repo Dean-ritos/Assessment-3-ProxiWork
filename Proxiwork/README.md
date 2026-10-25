@@ -6,7 +6,7 @@ Single-project Vercel deployment with a Vite React frontend and FastAPI API.
 
 1. Copy `frontend/.env.example` to `frontend/.env.local` and set `VITE_SUPABASE_URL` plus `VITE_SUPABASE_PUBLISHABLE_KEY` to the Supabase project URL and public publishable/anon key. This file must be inside `frontend/`; the root `Proxiwork/.env.local` is not loaded by Vite when the frontend is built. `VITE_*` values are browser-visible, so never put a service-role key there.
 2. Copy `backend/.env.example` to a local backend environment file if server-side Supabase or database access is added. Do not commit it.
-3. Apply `supabase/migrations/202610210001_proxiwork_schema.sql` with the Supabase CLI (`supabase db push`) or SQL Editor. It creates RLS-protected tables and a private `cvs` storage bucket.
+3. Apply every migration in `supabase/migrations/` in filename order with the Supabase CLI (`supabase db push`) or SQL Editor. They create the RLS-protected tables, private `cvs` storage bucket, job-search history, and the authenticated skill-insert policy required by onboarding.
 4. In one terminal run `py -m uvicorn backend.api.index:app --reload --port 8000`.
 5. In another run `Set-Location frontend; npm run dev`.
 

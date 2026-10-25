@@ -2,7 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 import { Heart, Search, UserRound } from "lucide-react";
 import wordmark from "../assets/proxiwork-logo.png";
 export function Logo({
-  className = "h-[150px] w-[150px]",
+  className = "h-[100px] w-[100px]",
 }: {
   className?: string;
 }) {

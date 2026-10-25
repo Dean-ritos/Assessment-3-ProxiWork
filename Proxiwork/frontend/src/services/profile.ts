@@ -112,18 +112,31 @@ export async function saveProfileBundle(input: {
     .eq("profile_id", profileId);
   if (deleteSkillsError) throw deleteSkillsError;
   if (normalized.length) {
-    const { error: skillError } = await db.from("skills").upsert(
-      normalized.map((name) => ({ name, normalised_name: name.toLowerCase() })),
-      { onConflict: "normalised_name", ignoreDuplicates: true },
+    const normalisedNames = normalized.map((name) => name.toLowerCase());
+    const { data: existingSkills, error: existingSkillsError } = await db
+      .from("skills")
+      .select("id,name")
+      .in("normalised_name", normalisedNames);
+    if (existingSkillsError) throw existingSkillsError;
+    const existingNames = new Set(
+      (existingSkills ?? []).map((skill) => skill.name.toLowerCase()),
     );
-    if (skillError) throw skillError;
+    const missingSkills = normalized.filter(
+      (name) => !existingNames.has(name.toLowerCase()),
+    );
+    if (missingSkills.length) {
+      const { error: skillError } = await db.from("skills").insert(
+        missingSkills.map((name) => ({
+          name,
+          normalised_name: name.toLowerCase(),
+        })),
+      );
+      if (skillError) throw skillError;
+    }
     const { data: skills, error: skillsError } = await db
       .from("skills")
       .select("id,name")
-      .in(
-        "normalised_name",
-        normalized.map((name) => name.toLowerCase()),
-      );
+      .in("normalised_name", normalisedNames);
     if (skillsError) throw skillsError;
     const { error: linkError } = await db.from("profile_skills").insert(
       (skills ?? []).map((skill) => ({
