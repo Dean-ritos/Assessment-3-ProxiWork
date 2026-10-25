@@ -1622,9 +1622,11 @@ export function SwipePage() {
   const weeklyGoal = useWeeklyApplicationGoal();
   return (
     <Shell mobileBanner={<WeeklyApplicationGoal compact {...weeklyGoal} />}>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="text-3xl font-black">Heres some listings for you</h1>
-        <JobViewSwitch view="swipe" />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="whitespace-nowrap text-lg font-black sm:text-3xl">Heres some listings for you</h1>
+        <div className="shrink-0">
+          <JobViewSwitch view="swipe" />
+        </div>
       </div>
       {loading ? (
         <p className="mt-6">Loading jobs…</p>
