@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  ChevronDown,
   FileText,
   MapPin,
   Plus,
@@ -23,7 +24,16 @@ import {
 } from "../components/ui";
 import { supabase, supabaseConfigured } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
-import { action, activity, apply, jobs, type Job } from "../services/jobs";
+import { extractCvDetails, type CvExtraction } from "../services/cv";
+import {
+  action,
+  activity,
+  apply,
+  jobs,
+  uploadCoverLetter,
+  weeklyApplicationProgress,
+  type Job,
+} from "../services/jobs";
 import {
   getProfileBundle,
   recentSearches,
@@ -81,15 +91,80 @@ const blankEducation = (): Education => ({
 });
 const employmentTypes = ["casual", "part_time", "full_time", "contract"];
 
+function formatEmploymentType(type: string) {
+  return type
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function JobTypeSelect({
+  selectedTypes,
+  onChange,
+}: {
+  selectedTypes: string[];
+  onChange: (types: string[]) => void;
+}) {
+  const selectionLabel = selectedTypes.length
+    ? `${selectedTypes.length} selected`
+    : "All job types";
+
+  return (
+    <details className="group relative">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between rounded-xl border border-slate-300 px-3 py-3 font-medium marker:content-none">
+        <span>{selectionLabel}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className="transition-transform group-open:rotate-180"
+          size={18}
+        />
+      </summary>
+      <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+        {employmentTypes.map((type) => {
+          const selected = selectedTypes.includes(type);
+          return (
+            <label
+              className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 hover:bg-slate-50"
+              key={type}
+            >
+              <input
+                checked={selected}
+                className="h-4 w-4 accent-[#0878F9]"
+                onChange={() =>
+                  onChange(
+                    selected
+                      ? selectedTypes.filter((value) => value !== type)
+                      : [...selectedTypes, type],
+                  )
+                }
+                type="checkbox"
+              />
+              <span>{formatEmploymentType(type)}</span>
+            </label>
+          );
+        })}
+      </div>
+    </details>
+  );
+}
+
 function formatMonthYear(date: string | null) {
   if (!date) return "";
   const match = /^(\d{4})-(\d{2})-\d{2}$/.exec(date);
-  return match ? `${match[2]}/${match[1]}` : "";
+  if (!match) return "";
+  return new Intl.DateTimeFormat("en-AU", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${match[1]}-${match[2]}-01T00:00:00Z`));
 }
 
-function parseMonthYear(value: string) {
-  const match = /^(0[1-9]|1[0-2])\/(\d{4})$/.exec(value.trim());
-  return match ? `${match[2]}-${match[1]}-01` : null;
+function preserveJobLineBreaks(text: string) {
+  return text.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+}
+
+function toMonthInputValue(date: string | null) {
+  return date?.match(/^\d{4}-\d{2}-\d{2}$/) ? date.slice(0, 7) : "";
 }
 
 function MonthYearInput({
@@ -103,43 +178,18 @@ function MonthYearInput({
   onChange: (value: string | null) => void;
   optional?: boolean;
 }) {
-  const [text, setText] = useState(() => formatMonthYear(value));
-  const [error, setError] = useState("");
-
-  useEffect(() => setText(formatMonthYear(value)), [value]);
-
-  const commit = () => {
-    const trimmed = text.trim();
-    if (!trimmed) {
-      setError("");
-      onChange(null);
-      return;
-    }
-    const date = parseMonthYear(trimmed);
-    if (!date) {
-      setError("Use MM/YYYY, for example 10/2026.");
-      return;
-    }
-    setError("");
-    onChange(date);
-  };
-
   return (
     <label className="block text-sm font-bold text-slate-700">
       {label}
       {optional ? " (optional)" : ""}
       <input
         className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal disabled:bg-slate-100"
-        inputMode="numeric"
-        maxLength={7}
-        onBlur={commit}
-        onChange={(event) => setText(event.target.value)}
-        placeholder="MM/YYYY"
-        value={text}
+        type="month"
+        value={toMonthInputValue(value)}
+        onChange={(event) =>
+          onChange(event.target.value ? `${event.target.value}-01` : null)
+        }
       />
-      {error && (
-        <span className="mt-1 block font-normal text-red-600">{error}</span>
-      )}
     </label>
   );
 }
@@ -252,12 +302,12 @@ function Pill({
   onRemove?: () => void;
 }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-3 py-1 text-sm font-bold text-teal-900">
+    <span className="inline-flex items-center gap-1 rounded-full bg-[#7754E8] px-3 py-1 text-sm font-bold text-white">
       {children}
       {onRemove && (
         <button
           aria-label={`Remove ${children}`}
-          className="rounded-full p-0.5 hover:bg-teal-200"
+          className="rounded-full p-0.5 hover:bg-white/20"
           onClick={onRemove}
         >
           <X size={14} />
@@ -698,6 +748,8 @@ export function OnboardingPage() {
   const [education, setEducation] = useState<Education[]>([blankEducation()]);
   const [cvPath, setCvPath] = useState<string | null>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
+  const [extractingCv, setExtractingCv] = useState(false);
+  const [cvExtractionMessage, setCvExtractionMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -732,6 +784,66 @@ export function OnboardingPage() {
     )
       setSkills((values) => [...values, skill]);
     setSkillInput("");
+  };
+  const applyCvSuggestions = (suggestions: CvExtraction) => {
+    setProfile((current) => {
+      const suggestedProfile = suggestions.profile;
+      return {
+        ...current,
+        first_name: current.first_name.trim()
+          ? current.first_name
+          : suggestedProfile.first_name,
+        last_name: current.last_name.trim()
+          ? current.last_name
+          : suggestedProfile.last_name,
+        phone: current.phone?.trim() ? current.phone : suggestedProfile.phone,
+        suburb: current.suburb?.trim()
+          ? current.suburb
+          : suggestedProfile.suburb,
+        state: current.state?.trim() ? current.state : suggestedProfile.state,
+        postcode: current.postcode?.trim()
+          ? current.postcode
+          : suggestedProfile.postcode,
+      };
+    });
+    setSkills((current) => {
+      const existing = new Set(current.map((skill) => skill.toLowerCase()));
+      return [
+        ...current,
+        ...suggestions.skills.filter((skill) => {
+          const normalized = skill.trim().toLowerCase();
+          if (!normalized || existing.has(normalized)) return false;
+          existing.add(normalized);
+          return true;
+        }),
+      ];
+    });
+    setExperiences((current) =>
+      current.some(hasExperienceContent) ? current : suggestions.experiences,
+    );
+    setEducation((current) =>
+      current.some(hasEducationContent) ? current : suggestions.education,
+    );
+  };
+  const selectCv = async (file: File | null) => {
+    setCvFile(file);
+    setCvExtractionMessage("");
+    if (!file) return;
+
+    setExtractingCv(true);
+    try {
+      const suggestions = await extractCvDetails(file);
+      applyCvSuggestions(suggestions);
+      setCvExtractionMessage(
+        "We added suggestions from your CV. Review every field before saving your profile.",
+      );
+    } catch (issue) {
+      setCvExtractionMessage(
+        `${issue instanceof Error ? issue.message : "Unable to extract CV details."} You can still complete your profile manually.`,
+      );
+    } finally {
+      setExtractingCv(false);
+    }
   };
   const finish = async () => {
     setError("");
@@ -793,7 +905,7 @@ export function OnboardingPage() {
         education: submittedEducation,
       });
       await refreshProfile();
-      navigate("/app/search", { replace: true });
+      navigate(editing ? "/app/profile" : "/app/search", { replace: true });
     } catch (issue) {
       setError(
         issue instanceof Error ? issue.message : "Unable to save your profile.",
@@ -942,8 +1054,9 @@ export function OnboardingPage() {
           {step === 3 && (
             <div>
               <p className="text-slate-600">
-                Optional: securely store your CV in your private ProxiWork
-                account. PDF and DOCX files up to 5 MB are accepted.
+                Optional: upload a PDF or DOCX CV up to 5 MB. We can suggest
+                profile details from it, but nothing is saved until you review
+                and confirm the fields yourself.
               </p>
               <label className="mt-5 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-brand-purple bg-brand-pale p-8 text-center font-bold text-brand-purple">
                 <Upload size={20} />
@@ -959,13 +1072,23 @@ export function OnboardingPage() {
                   type="file"
                   accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   onChange={(event) =>
-                    setCvFile(event.target.files?.[0] ?? null)
+                    void selectCv(event.target.files?.[0] ?? null)
                   }
                 />
               </label>
-              {cvFile && (
+              {extractingCv && (
+                <p className="mt-3 text-sm font-medium text-brand-purple">
+                  Reading your CV and preparing suggestions…
+                </p>
+              )}
+              {cvExtractionMessage && (
+                <p className="mt-3 rounded-xl bg-teal-50 p-3 text-sm text-teal-900">
+                  {cvExtractionMessage}
+                </p>
+              )}
+              {cvFile && !extractingCv && (
                 <p className="mt-3 text-sm text-slate-600">
-                  It will upload securely when you complete setup.
+                  Your CV will upload securely when you save your profile.
                 </p>
               )}
             </div>
@@ -1154,19 +1277,8 @@ function JobCard({ job }: { job: Job }) {
   const [note, setNote] = useState("");
   const label = job.employment_type.replace("_", " ");
   const saveJob = () => {
-    if (job.is_example)
-      return setNote("This is an example listing. Saving is not available.");
     void action(job.id, "saved")
       .then(() => setNote("Saved"))
-      .catch((issue) => setNote(issue.message));
-  };
-  const applyForJob = () => {
-    if (job.is_example)
-      return setNote(
-        "This is an example listing. Applications are not available.",
-      );
-    void apply(job.id)
-      .then(() => setNote("Application sent"))
       .catch((issue) => setNote(issue.message));
   };
   return (
@@ -1197,10 +1309,74 @@ function JobCard({ job }: { job: Job }) {
         >
           Save
         </button>
-        <Button onClick={applyForJob}>Apply</Button>
+        <Link
+          className="inline-flex items-center justify-center rounded-xl bg-[#0878F9] px-5 py-3 font-bold text-white shadow-sm hover:bg-[#0667D4]"
+          state={{ from: `${location.pathname}${location.search}` }}
+          to={`/app/jobs/${job.id}/apply`}
+        >
+          Apply
+        </Link>
       </div>
       {note && <p className="mt-3 text-sm font-medium text-teal-800">{note}</p>}
     </article>
+  );
+}
+
+function WeeklyApplicationGoal() {
+  const [goal, setGoal] = useState<number | null>(null);
+  const [applied, setApplied] = useState(0);
+
+  const loadProgress = async () => {
+    const [bundle, progress] = await Promise.all([
+      getProfileBundle(),
+      weeklyApplicationProgress(),
+    ]);
+    setGoal(bundle.profile.weekly_application_goal);
+    setApplied(progress.applied);
+  };
+
+  useEffect(() => {
+    void loadProgress();
+    const refresh = () => void loadProgress();
+    window.addEventListener("proxiwork:application-submitted", refresh);
+    return () =>
+      window.removeEventListener("proxiwork:application-submitted", refresh);
+  }, []);
+
+  if (goal === null) return null;
+  const remaining = Math.max(goal - applied, 0);
+  const percent = Math.min((applied / goal) * 100, 100);
+  const complete = remaining === 0;
+
+  return (
+    <section className="mt-6 rounded-2xl bg-[#7754E8] p-5 text-white shadow-sm">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <p className="text-sm font-bold text-white/85">Weekly application goal</p>
+          <h2 className="mt-1 text-xl font-black">
+            {applied} of {goal} applications completed
+          </h2>
+        </div>
+        <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-bold">
+          {complete ? "Goal complete" : `${remaining} to go`}
+        </span>
+      </div>
+      <div
+        aria-label={`${applied} of ${goal} weekly applications completed`}
+        aria-valuemax={goal}
+        aria-valuemin={0}
+        aria-valuenow={Math.min(applied, goal)}
+        className="mt-4 h-3 overflow-hidden rounded-full bg-white/25"
+        role="progressbar"
+      >
+        <div className="h-full rounded-full bg-white" style={{ width: `${percent}%` }} />
+      </div>
+      <p className="mt-3 text-sm font-medium text-white/90">
+        {complete
+          ? "You have reached your goal for this week — great work!"
+          : `Apply for ${remaining} more ${remaining === 1 ? "role" : "roles"} before Sunday to reach your goal.`}
+      </p>
+    </section>
   );
 }
 
@@ -1209,11 +1385,13 @@ export function SearchPage() {
   const [history, setHistory] = useState<RecentSearch[]>([]);
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
-  const [employmentType, setEmploymentType] = useState("");
+  const [employmentTypesFilter, setEmploymentTypesFilter] = useState<string[]>(
+    [],
+  );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const load = async (
-    filters = { query, location, employmentType },
+    filters = { query, location, employmentTypes: employmentTypesFilter },
     remember = false,
   ) => {
     setLoading(true);
@@ -1223,13 +1401,13 @@ export function SearchPage() {
         jobs({
           query: filters.query,
           location: filters.location,
-          employmentType: filters.employmentType,
+          employmentTypes: filters.employmentTypes,
         }),
         remember
           ? rememberSearch({
               query: filters.query,
               location: filters.location,
-              employment_type: filters.employmentType || null,
+              employment_type: filters.employmentTypes.join(",") || null,
             })
           : Promise.resolve(),
       ]);
@@ -1242,7 +1420,7 @@ export function SearchPage() {
     }
   };
   useEffect(() => {
-    void load({ query: "", location: "", employmentType: "" });
+    void load({ query: "", location: "", employmentTypes: [] });
   }, []);
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -1251,11 +1429,14 @@ export function SearchPage() {
   const applyRecentSearch = (item: RecentSearch) => {
     setQuery(item.query);
     setLocation(item.location);
-    setEmploymentType(item.employment_type ?? "");
+    const selectedTypes = item.employment_type
+      ? item.employment_type.split(",").filter(Boolean)
+      : [];
+    setEmploymentTypesFilter(selectedTypes);
     void load({
       query: item.query,
       location: item.location,
-      employmentType: item.employment_type ?? "",
+      employmentTypes: selectedTypes,
     });
   };
   return (
@@ -1264,6 +1445,7 @@ export function SearchPage() {
         <h1 className="text-3xl font-black">Find local jobs</h1>
         <JobViewSwitch view="list" />
       </div>
+      <WeeklyApplicationGoal />
       <form
         className="mt-6 grid gap-3 rounded-2xl bg-white p-4 shadow-sm md:grid-cols-[1fr_1fr_180px_auto]"
         onSubmit={submit}
@@ -1287,18 +1469,10 @@ export function SearchPage() {
           value={location}
           onChange={(event) => setLocation(event.target.value)}
         />
-        <select
-          className="rounded-xl border border-slate-300 px-3 py-3"
-          value={employmentType}
-          onChange={(event) => setEmploymentType(event.target.value)}
-        >
-          <option value="">All job types</option>
-          {employmentTypes.map((type) => (
-            <option key={type} value={type}>
-              {type.replace("_", " ")}
-            </option>
-          ))}
-        </select>
+        <JobTypeSelect
+          onChange={setEmploymentTypesFilter}
+          selectedTypes={employmentTypesFilter}
+        />
         <Button type="submit">Search</Button>
       </form>
       {history.length > 0 && (
@@ -1320,7 +1494,10 @@ export function SearchPage() {
                   <span className="block font-bold">
                     {item.query || "All jobs"}
                     {item.employment_type
-                      ? ` · ${item.employment_type.replace("_", " ")}`
+                      ? ` Â· ${item.employment_type
+                          .split(",")
+                          .map(formatEmploymentType)
+                          .join(", ")}`
                       : ""}
                   </span>
                   <span className="block truncate text-sm text-slate-500">
@@ -1393,6 +1570,7 @@ export function SwipePage() {
         <h1 className="text-3xl font-black">Heres some listings for you</h1>
         <JobViewSwitch view="swipe" />
       </div>
+      <WeeklyApplicationGoal />
       {loading ? (
         <p className="mt-6">Loading jobs…</p>
       ) : error ? (
@@ -1442,7 +1620,16 @@ export function ActivityPage() {
       .catch((issue) => setError(issue.message));
   }, []);
   const job = (
-    value: { title: string; suburb: string; state: string }[] | null,
+    value:
+      | {
+          id: string;
+          title: string;
+          suburb: string;
+          state: string;
+          status?: string | null;
+          employers: { company_name: string }[] | null;
+        }[]
+      | null,
   ) => value?.[0];
   return (
     <Shell>
@@ -1462,7 +1649,7 @@ export function ActivityPage() {
             opportunities to build your activity here.
           </p>
           <Link
-            className="mt-6 inline-flex rounded-xl bg-brand-purple px-5 py-3 font-bold text-white shadow-sm hover:bg-violet-700"
+            className="mt-6 inline-flex rounded-xl bg-[#0878F9] px-5 py-3 font-bold text-white shadow-sm hover:bg-[#0667D4]"
             to="/app/search"
           >
             Find local jobs
@@ -1478,12 +1665,36 @@ export function ActivityPage() {
                   const value = job(item.jobs);
                   return (
                     <li key={item.id} className="border-t pt-3">
-                      <p className="font-bold">
-                        {value?.title ?? "Job listing"}
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        {value?.suburb}, {value?.state}
-                      </p>
+                      {value ? (
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-bold">{value.title}</p>
+                            <p className="text-sm font-medium text-slate-600">
+                              {value.employers?.[0]?.company_name || "Employer"}
+                            </p>
+                            <p className="text-sm text-slate-500">
+                              Liked {new Date(item.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {value.status === "published" ? (
+                            <Link
+                              className="shrink-0 rounded-lg px-2 py-1 text-sm font-bold text-brand-purple outline-offset-4 hover:bg-brand-pale hover:text-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-purple"
+                              state={{ from: "/app/activity" }}
+                              to={`/app/jobs/${value.id}`}
+                            >
+                              Details
+                            </Link>
+                          ) : (
+                            <span className="shrink-0 rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-700">
+                              Unavailable
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="font-bold">
+                          Job listing is no longer available
+                        </p>
+                      )}
                     </li>
                   );
                 })}
@@ -1502,12 +1713,39 @@ export function ActivityPage() {
                   const value = job(item.jobs);
                   return (
                     <li key={item.id} className="border-t pt-3">
-                      <p className="font-bold">
-                        {value?.title ?? "Job listing"}
-                      </p>
-                      <p className="text-sm capitalize text-slate-500">
-                        Status: {item.status}
-                      </p>
+                      {value ? (
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-bold">{value.title}</p>
+                            <p className="text-sm font-medium text-slate-600">
+                              {value.employers?.[0]?.company_name || "Employer"}
+                            </p>
+                            <p className="text-sm text-slate-500">
+                              Applied {new Date(item.applied_at).toLocaleDateString()}
+                            </p>
+                            <p className="text-sm capitalize text-slate-500">
+                              Status: {item.status}
+                            </p>
+                          </div>
+                          {value.status === "published" ? (
+                            <Link
+                              className="shrink-0 rounded-lg px-2 py-1 text-sm font-bold text-brand-purple outline-offset-4 hover:bg-brand-pale hover:text-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-purple"
+                              state={{ from: "/app/activity" }}
+                              to={`/app/jobs/${value.id}`}
+                            >
+                              Details
+                            </Link>
+                          ) : (
+                            <span className="shrink-0 rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-700">
+                              Unavailable
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="font-bold">
+                          Job listing is no longer available
+                        </p>
+                      )}
                     </li>
                   );
                 })}
@@ -1543,7 +1781,7 @@ export function ProfilePage() {
           <h1 className="text-3xl font-black">Profile</h1>
         </div>
         <Link
-          className="rounded-xl bg-brand-purple px-5 py-3 font-bold text-white"
+          className="rounded-xl bg-[#0878F9] px-5 py-3 font-bold text-white hover:bg-[#0667D4]"
           to="/onboarding?edit=1"
         >
           Edit profile
@@ -1610,6 +1848,18 @@ export function ProfilePage() {
                     <p className="text-sm text-slate-600">
                       {item.company_name}
                     </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {formatMonthYear(item.start_date) || "Start date not provided"}
+                      {" – "}
+                      {item.is_current
+                        ? "Current"
+                        : formatMonthYear(item.end_date) || "End date not provided"}
+                    </p>
+                    {item.description && (
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                        {item.description}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -1695,7 +1945,7 @@ export function JobDetailsPage() {
             <section className="mt-7 border-t border-slate-200 pt-6">
               <h2 className="text-xl font-black">What you&apos;ll do</h2>
               <p className="mt-3 whitespace-pre-wrap text-slate-700">
-                {job.responsibilities}
+                {preserveJobLineBreaks(job.responsibilities)}
               </p>
             </section>
           )}
@@ -1703,7 +1953,7 @@ export function JobDetailsPage() {
             <section className="mt-7 border-t border-slate-200 pt-6">
               <h2 className="text-xl font-black">What you&apos;ll bring</h2>
               <p className="mt-3 whitespace-pre-wrap text-slate-700">
-                {job.requirements}
+                {preserveJobLineBreaks(job.requirements)}
               </p>
             </section>
           )}
@@ -1711,10 +1961,6 @@ export function JobDetailsPage() {
             <button
               className="rounded-xl border px-4 py-3 font-bold"
               onClick={() => {
-                if (job.is_example)
-                  return setNote(
-                    "This is an example listing. Saving is not available.",
-                  );
                 void action(job.id, "saved")
                   .then(() => setNote("Saved"))
                   .catch((issue) => setNote(issue.message));
@@ -1722,22 +1968,209 @@ export function JobDetailsPage() {
             >
               Save job
             </button>
-            <Button
-              onClick={() => {
-                if (job.is_example)
-                  return setNote(
-                    "This is an example listing. Applications are not available.",
-                  );
-                void apply(job.id)
-                  .then(() => setNote("Application sent"))
-                  .catch((issue) => setNote(issue.message));
-              }}
+            <Link
+              className="inline-flex items-center justify-center rounded-xl bg-[#0878F9] px-5 py-3 font-bold text-white shadow-sm hover:bg-[#0667D4]"
+              state={{ from: `${location.pathname}${location.search}` }}
+              to={`/app/jobs/${job.id}/apply`}
             >
               Apply
-            </Button>
+            </Link>
           </div>
           {note && <p className="mt-4 font-medium text-teal-800">{note}</p>}
         </article>
+      )}
+    </Shell>
+  );
+}
+
+export function JobApplicationPage() {
+  const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [job, setJob] = useState<Job | null>(null);
+  const [resumePath, setResumePath] = useState<string | null>(null);
+  const [coverLetterMode, setCoverLetterMode] = useState<
+    "none" | "write" | "upload"
+  >("none");
+  const [coverLetter, setCoverLetter] = useState("");
+  const [coverLetterFile, setCoverLetterFile] = useState<File | null>(null);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    void Promise.all([jobs(), getProfileBundle()])
+      .then(([items, bundle]) => {
+        setJob(items.find((item) => item.id === id) ?? null);
+        setResumePath(bundle.profile.resume_path);
+      })
+      .catch((issue) => setError(issue.message));
+  }, [id]);
+
+  const goBack = () => {
+    if (location.state?.from) navigate(-1);
+    else navigate(`/app/jobs/${id}`);
+  };
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!job) return;
+    setError("");
+    if (coverLetterMode === "write" && !coverLetter.trim()) {
+      setError("Write your cover letter or choose another option.");
+      return;
+    }
+    if (coverLetterMode === "upload" && !coverLetterFile) {
+      setError("Choose a PDF or DOCX cover-letter file to upload.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const coverLetterPath =
+        coverLetterMode === "upload" && coverLetterFile
+          ? await uploadCoverLetter(coverLetterFile)
+          : null;
+      await apply(job.id, {
+        resume_path: resumePath,
+        cover_letter: coverLetterMode === "write" ? coverLetter.trim() : null,
+        cover_letter_path: coverLetterPath,
+      });
+      window.dispatchEvent(new Event("proxiwork:application-submitted"));
+      navigate("/app/activity", { replace: true });
+    } catch (issue) {
+      setError(issue instanceof Error ? issue.message : "Unable to apply.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Shell>
+      <button
+        className="mb-5 inline-flex items-center gap-2 font-bold text-brand-purple hover:text-violet-700"
+        onClick={goBack}
+        type="button"
+      >
+        <ArrowLeft aria-hidden="true" size={19} />
+        Back
+      </button>
+      {error && <ErrorBox>{error}</ErrorBox>}
+      {!job ? (
+        <p className="mt-4">Loading application details…</p>
+      ) : (
+        <form
+          className="mx-auto max-w-3xl rounded-3xl bg-white p-6 shadow-sm"
+          onSubmit={submit}
+        >
+          <p className="font-bold text-brand-teal">Confirm your application</p>
+          <h1 className="mt-2 text-3xl font-black">{job.title}</h1>
+          <p className="mt-2 font-semibold text-slate-600">
+            {job.employers?.[0]?.company_name || "Employer"}
+          </p>
+          <p className="mt-2 flex items-center gap-1 text-slate-500">
+            <MapPin size={17} />
+            {job.suburb}, {job.state}
+          </p>
+
+          <section className="mt-7 border-t border-slate-200 pt-6">
+            <h2 className="text-xl font-black">Your application</h2>
+            <p className="mt-2 text-slate-600">
+              Review your details, choose an optional cover-letter method, then
+              confirm your application.
+            </p>
+            <p className="mt-4 rounded-xl bg-brand-pale p-3 text-sm font-medium text-slate-700">
+              {resumePath
+                ? "Your profile CV will be included with this application."
+                : "No CV is attached. You can still apply for this role."}
+            </p>
+          </section>
+
+          <fieldset className="mt-7 border-t border-slate-200 pt-6">
+            <legend className="text-xl font-black">Cover letter</legend>
+            <p className="mt-2 text-sm text-slate-600">
+              A cover letter is optional. Choose one option.
+            </p>
+            <div className="mt-4 space-y-3">
+              <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4">
+                <input
+                  checked={coverLetterMode === "none"}
+                  name="cover-letter-option"
+                  onChange={() => setCoverLetterMode("none")}
+                  type="radio"
+                />
+                <span>
+                  <span className="block font-bold">
+                    Apply without a cover letter
+                  </span>
+                  <span className="text-sm text-slate-600">
+                    Submit your application without adding one.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4">
+                <input
+                  checked={coverLetterMode === "write"}
+                  name="cover-letter-option"
+                  onChange={() => setCoverLetterMode("write")}
+                  type="radio"
+                />
+                <span className="font-bold">Write a cover letter</span>
+              </label>
+              {coverLetterMode === "write" && (
+                <Textarea
+                  label="Cover letter"
+                  onChange={(event) => setCoverLetter(event.target.value)}
+                  placeholder="Write a short message to the employer…"
+                  value={coverLetter}
+                />
+              )}
+              <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4">
+                <input
+                  checked={coverLetterMode === "upload"}
+                  name="cover-letter-option"
+                  onChange={() => setCoverLetterMode("upload")}
+                  type="radio"
+                />
+                <span>
+                  <span className="block font-bold">Upload a cover letter</span>
+                  <span className="text-sm text-slate-600">
+                    PDF or DOCX, up to 5 MB.
+                  </span>
+                </span>
+              </label>
+              {coverLetterMode === "upload" && (
+                <label className="block rounded-xl border border-dashed border-brand-purple p-4 text-sm font-bold text-brand-purple">
+                  <input
+                    accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    className="sr-only"
+                    onChange={(event) =>
+                      setCoverLetterFile(event.target.files?.[0] ?? null)
+                    }
+                    type="file"
+                  />
+                  <span className="inline-flex items-center gap-2">
+                    <Upload size={18} />
+                    {coverLetterFile
+                      ? coverLetterFile.name
+                      : "Choose cover-letter file"}
+                  </span>
+                </label>
+              )}
+            </div>
+          </fieldset>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button disabled={submitting} type="submit">
+              {submitting ? "Submitting application…" : "Confirm application"}
+            </Button>
+            <button
+              className="rounded-xl border px-5 py-3 font-bold"
+              onClick={goBack}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       )}
     </Shell>
   );

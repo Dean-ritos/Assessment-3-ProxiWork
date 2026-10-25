@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import {
   ActivityPage,
+  JobApplicationPage,
   JobDetailsPage,
   LandingPage,
   LoginPage,
@@ -84,6 +85,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <JobDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/jobs/:id/apply"
+            element={
+              <ProtectedRoute>
+                <JobApplicationPage />
               </ProtectedRoute>
             }
           />

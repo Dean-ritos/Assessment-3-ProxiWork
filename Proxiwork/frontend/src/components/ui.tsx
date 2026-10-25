@@ -26,10 +26,10 @@ export function Logo({
 }
 export function Button({
   children,
-  tone = "purple",
+  tone = "blue",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  tone?: "purple" | "blue";
+  tone?: "blue" | "purple";
 }) {
   return (
     <button

@@ -18,6 +18,9 @@ frontend/node_modules/
 dist/
 frontend/dist/
 
+# Supabase CLI local link metadata
+supabase/.temp/
+
 # System and editor files
 .DS_Store
 .vscode/
