@@ -156,10 +156,16 @@ function hasEducationContent(entry: Education) {
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({
+  children,
+  logoTo,
+}: {
+  children: React.ReactNode;
+  logoTo?: string;
+}) {
   return (
     <>
-      <Header />
+      <Header logoTo={logoTo} />
       <main className="mx-auto min-h-screen max-w-6xl p-5 pb-24 md:pb-8">
         {children}
       </main>
@@ -283,9 +289,6 @@ export function LandingPage() {
             </Link>
           </div>
         </div>
-        <p className="text-sm font-medium text-slate-500">
-          Casual · Part-time · Full-time · Contract
-        </p>
       </section>
     </main>
   );
@@ -675,6 +678,9 @@ export function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState<ProfileDraft>(blankProfile);
   const [skills, setSkills] = useState<string[]>([]);
+  const [selectedEmploymentTypes, setSelectedEmploymentTypes] = useState<
+    string[]
+  >([]);
   const [skillInput, setSkillInput] = useState("");
   const [experiences, setExperiences] = useState<Experience[]>([
     blankExperience(),
@@ -696,6 +702,7 @@ export function OnboardingPage() {
         } = bundle.profile;
         setProfile(draft);
         setSkills(bundle.skills);
+        setSelectedEmploymentTypes(bundle.jobPreferences.employment_types);
         setExperiences(
           bundle.experiences.length ? bundle.experiences : [blankExperience()],
         );
@@ -771,6 +778,7 @@ export function OnboardingPage() {
           onboarding_completed: true,
         },
         skills,
+        employmentTypes: selectedEmploymentTypes,
         experiences: submittedExperiences,
         education: submittedEducation,
       });
@@ -786,7 +794,7 @@ export function OnboardingPage() {
   };
   if (loading)
     return (
-      <Shell>
+      <Shell logoTo="/">
         <p>Loading your profile…</p>
       </Shell>
     );
@@ -800,7 +808,7 @@ export function OnboardingPage() {
     "Review",
   ];
   return (
-    <Shell>
+    <Shell logoTo="/">
       <div className="mx-auto max-w-3xl">
         <p className="font-bold text-brand-teal">
           {editing ? "Edit your profile" : "First-time setup"}
@@ -992,6 +1000,41 @@ export function OnboardingPage() {
                   </Pill>
                 ))}
               </div>
+              <fieldset className="mt-8 border-t border-slate-200 pt-6">
+                <legend className="font-black">
+                  What types of work are you looking for?
+                </legend>
+                <p className="mt-1 text-sm text-slate-600">
+                  Select all that apply. This is optional and can be changed
+                  later.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {employmentTypes.map((type) => {
+                    const selected = selectedEmploymentTypes.includes(type);
+                    return (
+                      <button
+                        aria-pressed={selected}
+                        className={`rounded-xl border px-4 py-3 font-bold transition-colors ${
+                          selected
+                            ? "border-brand-purple bg-brand-purple text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:border-brand-purple hover:text-brand-purple"
+                        }`}
+                        key={type}
+                        onClick={() =>
+                          setSelectedEmploymentTypes((values) =>
+                            selected
+                              ? values.filter((value) => value !== type)
+                              : [...values, type],
+                          )
+                        }
+                        type="button"
+                      >
+                        {type.replace("_", " ")}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
             </div>
           )}
           {step === 5 && (

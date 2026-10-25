@@ -40,6 +40,10 @@ export type RecentSearch = {
   created_at: string;
 };
 
+export type JobPreferences = {
+  employment_types: string[];
+};
+
 function client() {
   if (!supabase)
     throw new Error("Supabase is not configured. Add frontend/.env.local.");
@@ -75,8 +79,8 @@ export async function getProfile() {
 
 export async function getProfileBundle() {
   const db = client();
-  const [profile, skillRows, experienceRows, educationRows] = await Promise.all(
-    [
+  const [profile, skillRows, experienceRows, educationRows, preferenceRows] =
+    await Promise.all([
       getProfile(),
       db.from("profile_skills").select("skills(name)").order("created_at"),
       db
@@ -84,11 +88,12 @@ export async function getProfileBundle() {
         .select("*")
         .order("start_date", { ascending: false }),
       db.from("education").select("*").order("end_date", { ascending: false }),
-    ],
-  );
+      db.from("job_preferences").select("employment_types").maybeSingle(),
+    ]);
   if (skillRows.error) throw skillRows.error;
   if (experienceRows.error) throw experienceRows.error;
   if (educationRows.error) throw educationRows.error;
+  if (preferenceRows.error) throw preferenceRows.error;
   return {
     profile,
     skills: (skillRows.data ?? []).flatMap(
@@ -101,6 +106,9 @@ export async function getProfileBundle() {
     ),
     experiences: (experienceRows.data ?? []) as Experience[],
     education: (educationRows.data ?? []) as Education[],
+    jobPreferences: (preferenceRows.data ?? {
+      employment_types: [],
+    }) as JobPreferences,
   };
 }
 
@@ -110,6 +118,7 @@ export async function saveProfileBundle(input: {
     onboarding_completed?: boolean;
   };
   skills: string[];
+  employmentTypes: string[];
   experiences: Experience[];
   education: Education[];
 }) {
@@ -123,6 +132,19 @@ export async function saveProfileBundle(input: {
     .from("profiles")
     .upsert({ id: profileId, ...input.profile }, { onConflict: "id" });
   if (profileError) throw profileError;
+
+  const { error: preferencesError } = await db.from("job_preferences").upsert(
+    {
+      user_id: profileId,
+      employment_types: input.employmentTypes,
+      preferred_distance_km: input.profile.preferred_distance_km,
+      preferred_suburb: input.profile.suburb || null,
+      preferred_state: input.profile.state || null,
+      weekly_application_goal: input.profile.weekly_application_goal,
+    },
+    { onConflict: "user_id" },
+  );
+  if (preferencesError) throw preferencesError;
 
   const normalized = [
     ...new Set(input.skills.map((skill) => skill.trim()).filter(Boolean)),

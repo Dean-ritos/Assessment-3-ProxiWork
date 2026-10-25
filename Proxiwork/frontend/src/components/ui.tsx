@@ -1,16 +1,19 @@
 import { Link, NavLink } from "react-router-dom";
 import { Heart, Search, UserRound } from "lucide-react";
 import wordmark from "../assets/proxiwork-logo.png";
+
 export function Logo({
   className = "h-[100px] w-[100px]",
+  to = "/",
 }: {
   className?: string;
+  to?: string;
 }) {
   return (
     <Link
       aria-label="ProxiWork home"
       className="inline-flex items-center"
-      to="/"
+      to={to}
     >
       <img
         alt="ProxiWork"
@@ -33,11 +36,28 @@ export function Button({
     </button>
   );
 }
-export function Header() {
+export function Header({ logoTo = "/app/search" }: { logoTo?: string }) {
   return (
     <header className="border-b-4 border-brand-teal bg-white px-5 py-4">
-      <div className="mx-auto flex max-w-6xl justify-between">
-        <Logo />
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-5">
+        <Link
+          aria-label={
+            logoTo === "/" ? "Go to ProxiWork home" : "Go to Job Search"
+          }
+          className="inline-flex items-center gap-3"
+          to={logoTo}
+        >
+          <img
+            alt=""
+            aria-hidden="true"
+            className="h-[50px] w-[50px] object-contain"
+            src="/proxiwork-icon.png"
+          />
+          <span className="text-2xl font-black tracking-tight">
+            <span className="text-brand-purple">Proxi</span>
+            <span className="text-brand-teal">Work</span>
+          </span>
+        </Link>
         <nav className="hidden gap-5 text-sm font-bold md:flex">
           <Link to="/app/search">Find jobs</Link>
           <Link to="/app/activity">Activity</Link>
