@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  ArrowLeft,
   FileText,
   MapPin,
   Plus,
@@ -1149,6 +1150,7 @@ export function OnboardingPage() {
 }
 
 function JobCard({ job }: { job: Job }) {
+  const location = useLocation();
   const [note, setNote] = useState("");
   const label = job.employment_type.replace("_", " ");
   const saveJob = () => {
@@ -1183,7 +1185,8 @@ function JobCard({ job }: { job: Job }) {
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
         <Link
-          className="rounded-xl border border-brand-purple px-3 py-2 text-sm font-bold text-brand-purple"
+          className="inline-flex items-center justify-center rounded-xl border border-brand-purple px-3 py-2 text-sm font-bold text-brand-purple"
+          state={{ from: `${location.pathname}${location.search}` }}
           to={`/app/jobs/${job.id}`}
         >
           Details
@@ -1353,7 +1356,7 @@ export function SearchPage() {
             <ErrorBox>{error}</ErrorBox>
           </div>
         ) : list.length ? (
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <div className="mt-5 space-y-4">
             {list.map((job) => (
               <JobCard job={job} key={job.id} />
             ))}
@@ -1451,6 +1454,20 @@ export function ActivityPage() {
       )}
       {!data ? (
         <p className="mt-4">Loading your activity…</p>
+      ) : data.saved.length === 0 && data.applications.length === 0 ? (
+        <section className="mt-5 rounded-2xl bg-white p-8 text-center shadow-sm">
+          <h2 className="text-xl font-black">Start exploring local jobs</h2>
+          <p className="mx-auto mt-3 max-w-md text-slate-600">
+            You have not saved or applied for any jobs yet. Browse local
+            opportunities to build your activity here.
+          </p>
+          <Link
+            className="mt-6 inline-flex rounded-xl bg-brand-purple px-5 py-3 font-bold text-white shadow-sm hover:bg-violet-700"
+            to="/app/search"
+          >
+            Find local jobs
+          </Link>
+        </section>
       ) : (
         <div className="mt-5 grid gap-5 md:grid-cols-2">
           <section className="rounded-2xl bg-white p-5 shadow-sm">
@@ -1630,9 +1647,15 @@ export function ProfilePage() {
 
 export function JobDetailsPage() {
   const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  const goBack = () => {
+    if (location.state?.from) navigate(-1);
+    else navigate("/app/search");
+  };
   useEffect(() => {
     void jobs()
       .then((items) => setJob(items.find((item) => item.id === id) ?? null))
@@ -1640,6 +1663,14 @@ export function JobDetailsPage() {
   }, [id]);
   return (
     <Shell>
+      <button
+        className="mb-5 inline-flex items-center gap-2 font-bold text-brand-purple hover:text-violet-700"
+        onClick={goBack}
+        type="button"
+      >
+        <ArrowLeft aria-hidden="true" size={19} />
+        Back
+      </button>
       {error ? (
         <ErrorBox>{error}</ErrorBox>
       ) : !job ? (
