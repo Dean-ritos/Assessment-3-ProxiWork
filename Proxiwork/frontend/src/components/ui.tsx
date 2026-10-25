@@ -1,5 +1,6 @@
 import { Link, NavLink } from "react-router-dom";
 import { Heart, Search, UserRound } from "lucide-react";
+import shortLogo from "../assets/proxiwork-logo-short.png";
 import wordmark from "../assets/proxiwork-logo.png";
 
 export function Logo({
@@ -51,7 +52,7 @@ export function Header({ logoTo = "/app/search" }: { logoTo?: string }) {
             alt=""
             aria-hidden="true"
             className="h-[50px] w-[50px] object-contain"
-            src="/proxiwork-icon.png"
+            src={shortLogo}
           />
           <span className="text-2xl font-black tracking-tight">
             <span className="text-brand-purple">Proxi</span>
