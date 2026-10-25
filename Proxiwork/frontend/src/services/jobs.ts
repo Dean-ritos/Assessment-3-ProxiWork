@@ -162,9 +162,9 @@ export async function activity() {
     supabase
       .from("applications")
       .select(
-        "id,status,created_at,jobs(id,title,employment_type,suburb,state,employers(company_name))",
+        "id,status,applied_at,jobs(id,title,employment_type,suburb,state,employers(company_name))",
       )
-      .order("created_at", { ascending: false }),
+      .order("applied_at", { ascending: false }),
   ]);
   if (saved.error) throw saved.error;
   if (applications.error) throw applications.error;
